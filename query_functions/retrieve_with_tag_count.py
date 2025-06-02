@@ -126,11 +126,10 @@ def lambda_handler(event, context):
                 if thumb_url:
                     result_links.add(thumb_url)
                 # else: you might want to log if an image is missing a thumb_url
-            elif file_type == 'video': # Or any other type that uses full_url
+            else: # Or any other type that uses full_url
                 full_url = details.get('full_url')
                 if full_url:
                     result_links.add(full_url)
-            # else: handle other file types or log unknown types
 
         return {
             'statusCode': 200,
