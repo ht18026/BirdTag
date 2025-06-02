@@ -14,6 +14,8 @@ GSI_NAME = os.environ.get('DYNAMODB_GSI_NAME', 'birdTagIndex')       # Replace '
 def lambda_handler(event, context):
     try:
         # 1. Parse the input JSON from the request body
+        # The input is expected to be a dictionary with bird species as keys and counts as values
+        # Example input: {"crow": 2, "pigeon": 1}
         try:
             request_body = json.loads(event.get('body', '{}'))
         except json.JSONDecodeError:

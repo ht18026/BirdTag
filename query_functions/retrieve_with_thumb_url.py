@@ -16,6 +16,10 @@ def lambda_handler(event, context):
 
     try:
         # 1. The 'event' is already the parsed JSON object from the request body
+        # The input is expected to be a dictionary with a 'thumbnail_url' key
+    # {
+#     "thumbnail_url": "s3://your-bucket-name/path/to/your/thumbnail.jpg"
+#     }
         payload = event 
         
         print(f"Using event directly as payload: {payload}")
