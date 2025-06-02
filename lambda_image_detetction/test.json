@@ -1,0 +1,14 @@
+{
+  "Records": [
+    {
+      "s3": {
+        "bucket": {
+          "name": "birdtag-models-fit5225-g138"
+        },
+        "object": {
+          "key": "images/crows_1.jpg"
+        }
+      }
+    }
+  ]
+}
