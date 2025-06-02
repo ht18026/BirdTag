@@ -8,7 +8,7 @@ RUN pip install --upgrade pip && \
         torchaudio==2.2.2+cpu \
         -f https://download.pytorch.org/whl/cpu/torch_stable.html && \
     pip install --no-cache-dir \
-        ultralytics==8.2.0 \
+        ultralytics \
         opencv-python-headless==4.9.0.80 \
         supervision
 COPY lambda_function.py ./
