@@ -2,8 +2,8 @@ import os
 import boto3
 
 s3 = boto3.client("s3")
-MODEL_ENV = os.environ.get("MODEL_NAME", "model.pt")
-BUCKET_NAME = os.environ.get("BUCKET_NAME", "birdtag-models-fit5225-g138")  # S3 模型存储桶
+MODEL_ENV = os.environ.get("MODEL_NAME", "models/model.pt")
+BUCKET_NAME = os.environ.get("BUCKET_NAME", "birdtag-models-fit5225-g138")
 
 def download_file_from_s3(bucket, key, download_path):
     s3.download_file(bucket, key, download_path)
