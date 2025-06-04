@@ -123,6 +123,7 @@ def lambda_handler(event, context):
     #         "https://example.com/path/to/image1.jpg", 
     #         "https://example.com/path/to/image2.jpg"
     #     ]
+    # }
 
     try:
         request_body = json.loads(event.get('body', '{}'))
