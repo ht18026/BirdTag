@@ -43,20 +43,6 @@ FILE_TYPE_MAPPING = {
     'audio/wma': 'audios',
     'audio/m4a': 'audios',
     
-    # Document files
-    'application/pdf': 'documents',
-    'application/msword': 'documents',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'documents',
-    'application/vnd.ms-excel': 'documents',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'documents',
-    'text/plain': 'documents',
-    'text/csv': 'documents',
-    
-    # Archive files
-    'application/zip': 'archives',
-    'application/x-rar-compressed': 'archives',
-    'application/x-tar': 'archives',
-    'application/gzip': 'archives',
 }
 
 def lambda_handler(event, context):
@@ -184,14 +170,6 @@ def determine_file_folder(file_name, content_type=None):
     # Audio extensions
     elif file_extension in ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.wma', '.m4a']:
         return 'audios'
-    
-    # Document extensions
-    elif file_extension in ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.csv']:
-        return 'documents'
-    
-    # Archive extensions
-    elif file_extension in ['.zip', '.rar', '.tar', '.gz', '.7z']:
-        return 'archives'
     
     # Default to others
     else:
