@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bird Detection System</title>
+    <style>
+        /* 样式代码（从之前的代码复制） */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .auth-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .main-content {
+            display: none;
+        }
+
+        .section {
+            background: white;
+            margin-bottom: 20px;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            padding: 40px;
+            text-align: center;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .search-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        input, select, button {
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #5a6fd8;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .result-card {
+            border: 1px solid #eee;
+            border-radius: 10px;
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+
+        .result-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .result-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background: #f8f9fa;
+        }
+
+        .result-content {
+            padding: 15px;
+        }
+
+        .bird-tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin: 2px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .message {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .message.info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b3d7ff;
+            display: block;
+        }
+
+        .center {
+            display: flex;
+            justify-content: right;
+            align-items: flex-end;
+        }
+
+        #presignedUploadBtn {
+            display: none;
+            margin-top: 10px;
+        }
+
+        #presignedUploadBtn.show {
+            display: block;
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        @media (max-width: 768px) {
+            .search-form {
+                grid-template-columns: 1fr;
+            }
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🐦 Bird Detection System</h1>
+        <p>Upload, Detect, and Search Bird Media Files</p>
+    </div>
+
+    <div class="container">
+        <!-- 认证部分 -->
+        <div id="authSection" class="auth-section">
+            <h2>Welcome to Bird Detection System</h2>
+            <p>Please sign in to access the system</p>
+            <button onclick="signIn()" style="margin: 10px;">Sign In</button>
+            <button onclick="signUp()" style="margin: 10px; background: #28a745;">Sign Up</button>
+
+            <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 5px;">
+                <h4>⚠️ Configuration Required</h4>
+                <p>Please update the CONFIG object in this HTML file with your actual AWS values:</p>
+                <ul style="text-align: left; margin: 10px 0;">
+                    <li>API_ENDPOINT: Your API Gateway URL</li>
+                    <li>COGNITO_DOMAIN: Your Cognito domain</li>
+                    <li>COGNITO_CLIENT_ID: Your Cognito app client ID</li>
+                    <li>S3_BUCKET: Your S3 bucket name</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 主要内容 -->
+        <div id="mainContent" class="main-content">
+            <!-- 用户信息 -->
+            <div class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h3>Welcome, <span id="userName">User</span>!</h3>
+                        <p>Email: <span id="userEmail">user@example.com</span></p>
+                    </div>
+                    <button onclick="signOut()" style="background: #dc3545;">Sign Out</button>
+                </div>
+            </div>
+
+            <!-- 文件上传 -->
+            <div class="section">
+                <h2>📤 Upload Files</h2>
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <p style="font-size: 1.2rem; margin-bottom: 10px;">Click to upload or drag files here</p>
+                    <p style="color: #666;">Supported: Images (JPG, PNG), Audio (MP3, WAV), Video (MP4, AVI)</p>
+                    <input type="file" id="fileInput" style="display: none;" accept="image/*,audio/*,video/*">
+                  
+                </div>
+                <div class="center">
+                    <button class="btn" onclick="uploadWithPresignedUrl()" id="presignedUploadBtn" disabled>
+                        🔗 Upload
+                    </button>
+                </div>
+
+                <div id="uploadStatus"></div>
+                <div class="message" id="presignedFileInfo"></div>
+                <div class="message" id="presignedResult"></div>
+            </div>
+
+            <!-- 搜索功能 -->
+            <div class="section">
+                <h2>🔍 Search Birds</h2>
+                <div class="search-form">
+                    <input type="text" id="birdName" placeholder="Enter bird name (e.g., robin, crow)">
+                    <input type="number" id="minCount" placeholder="Minimum count" min="1" value="1">
+                    <button onclick="searchBirds()">Search</button>
+                </div>
+                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <button onclick="loadAllFiles()">Show All Files</button>
+                    <button onclick="getStatistics()" style="background: #17a2b8;">Statistics</button>
+                    <button onclick="testAPI()" style="background: #6f42c1;">Test API</button>
+                </div>
+            </div>
+
+            <!-- 结果显示 -->
+            <div class="section">
+                <h2>📋 Results</h2>
+                <div id="resultsContainer">
+                    <p style="text-align: center; color: #666;">No results yet. Upload files or search for birds!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 配置 - 请替换为您的实际值
+        const CONFIG = {
+            API_ENDPOINT: 'https://fy2v1pe2s1.execute-api.us-east-1.amazonaws.com/default',
+            COGNITO_DOMAIN: 'pbns7ti042.execute-api.us-east-1.amazonaws.com',
+            COGNITO_CLIENT_ID: 'your-client-id',
+            REDIRECT_URI: window.location.origin + window.location.pathname,
+            S3_BUCKET: 'your-bucket-name'
+            // https://pbns7ti042.execute-api.us-east-1.amazonaws.com/dev/retrieve-with-thumb-url
+        };
+
+        let currentUser = null;
+        let accessToken = null;
+
+        // 页面加载时检查认证状态
+        window.onload = function() {
+            checkConfiguration();
+            checkAuthStatus();
+        };
+
+        // 检查配置
+        function checkConfiguration() {
+            const configIncomplete = CONFIG.API_ENDPOINT.includes('your-') ||
+                                   CONFIG.COGNITO_DOMAIN.includes('your-') ||
+                                   CONFIG.COGNITO_CLIENT_ID.includes('your-') ||
+                                   CONFIG.S3_BUCKET.includes('your-');
+
+            if (configIncomplete) {
+                showMessage('⚠️ Please update the CONFIG object with your actual AWS values', 'warning');
+            }
+        }
+
+        // 检查认证状态
+        function checkAuthStatus() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+
+            if (code) {
+                exchangeCodeForTokens(code);
+            } else {
+                const storedToken = localStorage.getItem('accessToken');
+                const storedUser = localStorage.getItem('currentUser');
+
+                if (storedToken && storedUser) {
+                    accessToken = storedToken;
+                    currentUser = JSON.parse(storedUser);
+                    showMainContent();
+                } else {
+                    showAuthSection();
+                }
+            }
+        }
+
+        // 登录
+        function signIn() {
+            if (CONFIG.COGNITO_DOMAIN.includes('your-')) {
+                showMessage('Please configure COGNITO_DOMAIN first', 'error');
+                return;
+            }
+
+            const authUrl = `https://${CONFIG.COGNITO_DOMAIN}/login?` +
+                `client_id=${CONFIG.COGNITO_CLIENT_ID}&` +
+                `response_type=code&` +
+                `scope=email+openid+profile&` +
+                `redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
+
+            window.location.href = authUrl;
+        }
+
+        // 注册
+        function signUp() {
+            if (CONFIG.COGNITO_DOMAIN.includes('your-')) {
+                showMessage('Please configure COGNITO_DOMAIN first', 'error');
+                return;
+            }
+
+            const authUrl = `https://${CONFIG.COGNITO_DOMAIN}/signup?` +
+                `client_id=${CONFIG.COGNITO_CLIENT_ID}&` +
+                `response_type=code&` +
+                `scope=email+openid+profile&` +
+                `redirect_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
+
+            window.location.href = authUrl;
+        }
+
+        // 登出
+        function signOut() {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('currentUser');
+
+            if (!CONFIG.COGNITO_DOMAIN.includes('your-')) {
+                const logoutUrl = `https://${CONFIG.COGNITO_DOMAIN}/logout?` +
+                    `client_id=${CONFIG.COGNITO_CLIENT_ID}&` +
+                    `logout_uri=${encodeURIComponent(CONFIG.REDIRECT_URI)}`;
+
+                window.location.href = logoutUrl;
+            } else {
+                showAuthSection();
+            }
+        }
+
+        // 交换授权码为访问令牌
+        async function exchangeCodeForTokens(code) {
+            try {
+                showMessage('Authenticating...', 'info');
+
+                const response = await fetch(`https://${CONFIG.COGNITO_DOMAIN}/oauth2/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        grant_type: 'authorization_code',
+                        client_id: CONFIG.COGNITO_CLIENT_ID,
+                        code: code,
+                        redirect_uri: CONFIG.REDIRECT_URI
+                    })
+                });
+
+                if (response.ok) {
+                    const tokens = await response.json();
+                    accessToken = tokens.access_token;
+
+                    const userResponse = await fetch(`https://${CONFIG.COGNITO_DOMAIN}/oauth2/userInfo`, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`
+                        }
+                    });
+
+                    if (userResponse.ok) {
+                        currentUser = await userResponse.json();
+
+                        localStorage.setItem('accessToken', accessToken);
+                        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+                        window.history.replaceState({}, document.title, window.location.pathname);
+
+                        showMainContent();
+                        showMessage('Successfully signed in!', 'success');
+                    }
+                } else {
+                    throw new Error('Authentication failed');
+                }
+            } catch (error) {
+                console.error('Token exchange failed:', error);
+                showMessage('Authentication failed. Please try again.', 'error');
+                showAuthSection();
+            }
+        }
+
+        // 显示认证部分
+        function showAuthSection() {
+            document.getElementById('authSection').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'none';
+        }
+
+        // 显示主要内容
+        function showMainContent() {
+            document.getElementById('authSection').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+
+            if (currentUser) {
+                document.getElementById('userName').textContent = currentUser.given_name || currentUser.name || 'User';
+                document.getElementById('userEmail').textContent = currentUser.email || '';
+            }
+
+            // 加载初始数据
+            // setTimeout(() => {
+            //     getStatistics();
+            // }, 1000);
+        }
+    
+        
+        // 预签名URL上传65589478
+        async function uploadWithPresignedUrl() {
+            const fileInput = document.getElementById('fileInput');
+            const apiUrl = 'https://wto5iqge82.execute-api.us-east-1.amazonaws.com/dev/lambda_presigned_upload';
+            const result = document.getElementById('resultsContainer');
+            const uploadBtn = document.getElementById('presignedUploadBtn');
+            
+            if (!fileInput.files[0]) {
+                showResult('presignedResult', '请先选择文件', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            uploadBtn.disabled = true;
+            
+            try {
+                // 步骤1: 获取预签名URL
+                // updateProgress('presigned', 10, '正在获取预签名URL...');
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        file_name: file.name,
+                        content_type: file.type,
+                        file_size: file.size
+                    })
+                });
+                
+                if (!response.ok) throw new Error('获取预签名URL失败');
+                
+                const data = await response.json();
+                const urlData = data.body ? JSON.parse(data.body) : data;
+                
+                // 步骤2: 上传到S3
+                // updateProgress('presigned', 30, '正在上传文件...');
+                
+                const uploadResponse = await fetch(urlData.presigned_url, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {'Content-Type': file.type}
+                });
+                
+                if (uploadResponse.ok) {
+                    // updateProgress('presigned', 100, '上传完成！');
+                    showResult('presignedResult', `
+                        <h3>✅ 上传成功！</h3>
+                        <p><strong>存储路径:</strong> ${urlData.file_key}</p>
+                        <p><strong>文件URL:</strong> <a href="${urlData.file_url}" target="_blank">${urlData.file_url}</a></p>
+                    `, 'success');
+                } else {
+                    throw new Error('上传到S3失败');
+                }
+                
+            } catch (error) {
+                // updateProgress('presigned', 0, '上传失败');
+                showResult('presignedResult', `上传错误: ${error.message}`, 'error');
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const fileInfo = document.getElementById('presignedFileInfo');
+            const uploadBtn = document.getElementById('presignedUploadBtn');
+            
+            if (file) {
+                const fileSizeUnit = file.size > 1024 * 1024 ? 
+                    `${(file.size / 1024 / 1024).toFixed(2)} MB` : 
+                    `${(file.size / 1024).toFixed(2)} KB`;
+                
+                fileInfo.innerHTML = `
+                    <h4>📋 文件信息</h4>
+                    <p><strong>文件名:</strong> ${file.name}</p>
+                    <p><strong>大小:</strong> ${fileSizeUnit}</p>
+                    <p><strong>类型:</strong> ${file.type || '未知'}</p>
+                `;
+                fileInfo.style.display = 'block';
+                fileInfo.className = 'message info';
+                uploadBtn.disabled = false;
+                uploadBtn.classList.add('show');
+            } else {
+                fileInfo.style.display = 'none';
+                uploadBtn.disabled = true;
+            }
+        });
+
+        function showResult(elementId, message, type) {
+            const result = document.getElementById(elementId);
+            result.className = `message ${type}`;
+            result.innerHTML = message;
+            result.style.display = 'block';
+        }
+
+        // 搜索鸟类
+        async function searchBirds() {
+            const birdName = 'crow';//document.getElementById('birdName').value.trim();
+            const minCount = document.getElementById('minCount').value || 1;
+
+            if (!birdName) {
+                showMessage('Please enter a bird name', 'error');
+                return;
+            }
+
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = '<div class="loading">🔍 Searching...</div>';
+
+            try {
+                const response = await apiCall(`/search?bird_name=${encodeURIComponent(birdName)}&min_count=${minCount}`);
+                displayResults(response, `Search results for "${birdName}"`);
+                displayResults(response, `retrieve_by_thumb_url results for "${birdName}"`);
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="message error">Search failed: ${error.message}</div>`;
+            }
+        }
+
+        // 加载所有文件
+        async function loadAllFiles() {
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = '<div class="loading">📂 Loading files...</div>';
+
+            try {
+                const response = await apiCall('/files?limit=20');
+                displayResults(response, 'All Files');
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="message error">Failed to load files: ${error.message}</div>`;
+            }
+        }
+
+        // 获取统计信息
+        async function getStatistics() {
+            try {
+                const response = await apiCall('/stats');
+                displayStatistics(response);
+                showMessage('Statistics loaded successfully', 'success');
+            } catch (error) {
+                console.error('Failed to load statistics:', error);
+                showMessage('Failed to load statistics', 'error');
+            }
+        }
+
+        // 测试API连接
+        async function testAPI() {
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = '<div class="loading">🧪 Testing API connection...</div>';
+
+            try {
+                const response = await apiCall('/stats');
+                resultsContainer.innerHTML = `
+                    <div class="message success">
+                        <h3>✅ API Connection Successful!</h3>
+                        <p>Successfully connected to: ${CONFIG.API_ENDPOINT}</p>
+                        <p>Response received at: ${new Date().toLocaleString()}</p>
+                    </div>
+                `;
+            } catch (error) {
+                resultsContainer.innerHTML = `
+                    <div class="message error">
+                        <h3>❌ API Connection Failed</h3>
+                        <p>Error: ${error.message}</p>
+                        <p>Endpoint: ${CONFIG.API_ENDPOINT}</p>
+                        <p>Please check your configuration and ensure the API is deployed.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // API调用
+        async function apiCall(endpoint, options = {}) {
+            if (CONFIG.API_ENDPOINT.includes('your-')) {
+                throw new Error('Please configure API_ENDPOINT first');
+            }
+
+            const url = CONFIG.API_ENDPOINT + endpoint;
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+                }
+            };
+
+            const response = await fetch(url, { ...defaultOptions, ...options });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API call failed: ${response.status} - ${errorText}`);
+            }
+
+            return await response.json();
+        }
+
+        // 显示结果
+        function displayResults(data, title) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            const files = data.files || data.results || [];
+
+            if (files.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <h3>${title}</h3>
+                        <p>No files found.</p>
+                        <div class="message info">
+                            Try uploading some bird images/videos to S3 first:
+                            <br><code>aws s3 cp bird-photo.jpg s3://${CONFIG.S3_BUCKET}/uploads/</code>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `<h3>${title} (${files.length} files)</h3><div class="results-grid">`;
+
+            files.forEach(file => {
+                html += `
+                    <div class="result-card">
+                        ${file.thumbnail_url ?
+                            `<img src="${file.thumbnail_url}" alt="${file.filename}" class="result-image" onerror="this.style.display='none'">` :
+                            `<div class="result-image" style="display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
+                                <span style="font-size: 3rem;">📁</span>
+                            </div>`
+                        }
+                        <div class="result-content">
+                            <h4>${file.filename || 'Unknown file'}</h4>
+                            <p><strong>Uploaded:</strong> ${file.upload_timestamp ? new Date(file.upload_timestamp).toLocaleDateString() : 'Unknown'}</p>
+                            <p><strong>Detections:</strong> ${file.detection_count || 0}</p>
+                            ${file.bird_summary ?
+                                `<div style="margin: 10px 0;">
+                                    ${file.bird_summary.map(bird =>
+                                        `<span class="bird-tag">${bird.bird_name} (${(bird.confidence * 100).toFixed(1)}%)</span>`
+                                    ).join('')}
+                                </div>` : ''
+                            }
+                            ${file.s3_url ? `<a href="${file.s3_url}" target="_blank" style="color: #667eea;">View Original</a>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            resultsContainer.innerHTML = html;
+        }
+
+        // 显示统计信息
+        function displayStatistics(data) {
+            if (!data) return;
+
+            console.log('Statistics:', data);
+
+            // 可以在这里添加统计信息的显示逻辑
+            const statsHtml = `
+                <div class="message info">
+                    <h4>📊 System Statistics</h4>
+                    <p>Total Files: ${data.total_files || 0}</p>
+                    <p>Total Detections: ${data.total_detections || 0}</p>
+                    <p>Unique Species: ${data.unique_species || 0}</p>
+                </div>
+            `;
+
+            // 可以添加到结果容器或其他位置
+        }
+
+        // 显示消息
+        function showMessage(message, type = 'info') {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.innerHTML = message;
+
+            document.querySelector('.container').insertBefore(messageDiv, document.querySelector('.container').firstChild);
+
+            setTimeout(() => {
+                messageDiv.remove();
+            }, 5000);
+        }
+
+        setTimeout(() => {
+            showMainContent();
+        }, 1000);
+    
+    </script>
+</body>
+</html>
