@@ -59,16 +59,13 @@ def lambda_handler(event, context):
                     TableName=TABLE_NAME,
                     IndexName=GSI_NAME,
                     KeyConditionExpression="bird_tag = :tag_val",
-                    # Filter for items where count is at least 1
-                    FilterExpression="#c >= :min_presence_count", 
-                    ExpressionAttributeNames={
-                        "#c": "count" 
-                    },
+                    # FilterExpression removed as per requirement
                     ExpressionAttributeValues={
-                        ":tag_val": {"S": bird_species},
-                        ":min_presence_count": {"N": "1"} # Ensures at least one bird of this species
+                        ":tag_val": {"S": bird_species}
                     },
                     # Project all necessary attributes. Ensure your GSI is configured to project these.
+                    # 'count' is no longer strictly needed for projection if only used for the removed filter,
+                    # but keeping it in ProjectionExpression doesn't harm if GSI projects it.
                     ProjectionExpression="media_id, file_type, full_url, thumb_url" 
                 )
 
