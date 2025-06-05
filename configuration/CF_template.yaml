@@ -39,36 +39,35 @@ Resources:
               KeyType: HASH
           Projection:
             ProjectionType: INCLUDE
-          NonKeyAttributes:
-            - bird_tag
-            - file_type
-            - full_url
+            NonKeyAttributes:
+              - bird_tag
+              - file_type
+              - full_url
         - IndexName: full_url-index
           KeySchema:
             - AttributeName: full_url
               KeyType: HASH
           Projection:
             ProjectionType: INCLUDE
-          NonKeyAttributes:
-            - bird_tag
-            - file_type
-            - thumb_url
+            NonKeyAttributes:
+              - bird_tag
+              - file_type
+              - thumb_url
 
-  Resources:
-    ImageRepo:
-      Type: AWS::ECR::Repository
-      Properties:
-        RepositoryName: Page/image-repo
+  ImageRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: page/image-repo
 
-    VideoRepo:
-      Type: AWS::ECR::Repository
-      Properties:
-        RepositoryName: Page/video-repo
+  VideoRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: page/video-repo
 
-    AudioRepo:
-      Type: AWS::ECR::Repository
-      Properties:
-        RepositoryName: Page/audio-repo
+  AudioRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: page/audio-repo
 
 Outputs:
   BucketName:
