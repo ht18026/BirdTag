@@ -8,19 +8,19 @@ from lambda_function import handler
 class MyTestCase(unittest.TestCase):
     def test_something(self):
         event = {
-  "Records": [
-    {
-      "s3": {
-        "bucket": {
-          "name": "birdtag-models-fit5225-g138"
-        },
-        "object": {
-          "key": "images/crows_1.jpg"
+            "Records": [
+                {
+                    "s3": {
+                        "bucket": {
+                            "name": "birdtag-models-fit5225-g138"
+                        },
+                        "object": {
+                            "key": "images/crows_1.jpg"
+                        }
+                    }
+                }
+            ]
         }
-      }
-    }
-  ]
-}
 
         response = handler(event, None)
         print(json.dumps(response, indent=2))
