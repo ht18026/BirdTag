@@ -1,0 +1,78 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.log
+
+# Pipenv, venv, Poetry
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+*.env
+*.venv
+*.devcontainer/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# PyInstaller
+*.manifest
+*.spec
+
+# pytest
+.cache/
+*.cover
+coverage.xml
+htmlcov/
+.tox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# pyright/pytype
+.pytype/
+
+# pip wheel cache
+wheels/
+
+# === VSCode / IDEs ===
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# === Operating System ===
+.DS_Store         # macOS
+Thumbs.db         # Windows
+desktop.ini       # Windows
+
+# === Git ===
+*.orig
+*.rej
+*.bak
+
+# === Temporary files ===
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# === Jupyter Notebook runtime ===
+*.ipynb_checkpoints
+
+.dockerignore
+
+*/.DS_Store
+
