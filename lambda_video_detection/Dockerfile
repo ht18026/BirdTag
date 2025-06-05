@@ -12,6 +12,5 @@ RUN pip install --upgrade pip && \
         opencv-python-headless==4.9.0.80 \
         supervision
 COPY lambda_function.py ./
-COPY utils.py ./
 CMD ["lambda_function.handler"]
 
