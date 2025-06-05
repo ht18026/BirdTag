@@ -73,3 +73,6 @@ desktop.ini       # Windows
 *.ipynb_checkpoints
 
 .dockerignore
+
+*/.DS_Store
+
