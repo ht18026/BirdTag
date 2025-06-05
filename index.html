@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bird Detection System</title>
     <style>
-        /* 样式代码（从之前的代码复制） */
+        /* Style code (copied from previous code) */
         * {
             margin: 0;
             padding: 0;
@@ -212,7 +212,7 @@
     </div>
 
     <div class="container">
-        <!-- 认证部分 -->
+        <!-- Authentication Section -->
         <div id="authSection" class="auth-section">
             <h2>Welcome to Bird Detection System</h2>
             <p>Please sign in to access the system</p>
@@ -231,9 +231,9 @@
             </div>
         </div>
 
-        <!-- 主要内容 -->
+        <!-- Main Content -->
         <div id="mainContent" class="main-content">
-            <!-- 用户信息 -->
+            <!-- User Information -->
             <div class="section">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
@@ -244,7 +244,7 @@
                 </div>
             </div>
 
-            <!-- 文件上传 -->
+            <!-- File Upload -->
             <div class="section">
                 <h2>📤 Upload Files</h2>
                 <div class="upload-area" onclick="document.getElementById('fileInput').click()">
@@ -264,7 +264,7 @@
                 <div class="message" id="presignedResult"></div>
             </div>
 
-            <!-- 搜索功能 -->
+            <!-- Search Functionality -->
             <div class="section">
                 <h2>🔍 Search Birds</h2>
                 <div class="search-form">
@@ -279,7 +279,7 @@
                 </div>
             </div>
 
-            <!-- 结果显示 -->
+            <!-- Results Display -->
             <div class="section">
                 <h2>📋 Results</h2>
                 <div id="resultsContainer">
@@ -290,7 +290,7 @@
     </div>
 
     <script>
-        // 配置 - 请替换为您的实际值
+        // Configuration - Please replace with your actual values
         const CONFIG = {
             API_ENDPOINT: 'https://fy2v1pe2s1.execute-api.us-east-1.amazonaws.com/default',
             COGNITO_DOMAIN: 'pbns7ti042.execute-api.us-east-1.amazonaws.com',
@@ -303,13 +303,13 @@
         let currentUser = null;
         let accessToken = null;
 
-        // 页面加载时检查认证状态
+        // Check authentication status on page load
         window.onload = function() {
             checkConfiguration();
             checkAuthStatus();
         };
 
-        // 检查配置
+        // Check configuration
         function checkConfiguration() {
             const configIncomplete = CONFIG.API_ENDPOINT.includes('your-') ||
                                    CONFIG.COGNITO_DOMAIN.includes('your-') ||
@@ -321,7 +321,7 @@
             }
         }
 
-        // 检查认证状态
+        // Check authentication status
         function checkAuthStatus() {
             const urlParams = new URLSearchParams(window.location.search);
             const code = urlParams.get('code');
@@ -342,7 +342,7 @@
             }
         }
 
-        // 登录
+        // Sign in
         function signIn() {
             if (CONFIG.COGNITO_DOMAIN.includes('your-')) {
                 showMessage('Please configure COGNITO_DOMAIN first', 'error');
@@ -358,7 +358,7 @@
             window.location.href = authUrl;
         }
 
-        // 注册
+        // Sign up
         function signUp() {
             if (CONFIG.COGNITO_DOMAIN.includes('your-')) {
                 showMessage('Please configure COGNITO_DOMAIN first', 'error');
@@ -374,7 +374,7 @@
             window.location.href = authUrl;
         }
 
-        // 登出
+        // Sign out
         function signOut() {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('currentUser');
@@ -390,7 +390,7 @@
             }
         }
 
-        // 交换授权码为访问令牌
+        // Exchange authorization code for access tokens
         async function exchangeCodeForTokens(code) {
             try {
                 showMessage('Authenticating...', 'info');
@@ -439,13 +439,13 @@
             }
         }
 
-        // 显示认证部分
+        // Show authentication section
         function showAuthSection() {
             document.getElementById('authSection').style.display = 'block';
             document.getElementById('mainContent').style.display = 'none';
         }
 
-        // 显示主要内容
+        // Show main content
         function showMainContent() {
             document.getElementById('authSection').style.display = 'none';
             document.getElementById('mainContent').style.display = 'block';
@@ -455,14 +455,14 @@
                 document.getElementById('userEmail').textContent = currentUser.email || '';
             }
 
-            // 加载初始数据
+            // Load initial data
             // setTimeout(() => {
             //     getStatistics();
             // }, 1000);
         }
     
         
-        // 预签名URL上传65589478
+        // Upload with presigned URL
         async function uploadWithPresignedUrl() {
             const fileInput = document.getElementById('fileInput');
             const apiUrl = 'https://wto5iqge82.execute-api.us-east-1.amazonaws.com/dev/lambda_presigned_upload';
@@ -470,7 +470,7 @@
             const uploadBtn = document.getElementById('presignedUploadBtn');
             
             if (!fileInput.files[0]) {
-                showResult('presignedResult', '请先选择文件', 'error');
+                showResult('presignedResult', 'Please select a file first', 'error');
                 return;
             }
             
@@ -478,8 +478,8 @@
             uploadBtn.disabled = true;
             
             try {
-                // 步骤1: 获取预签名URL
-                // updateProgress('presigned', 10, '正在获取预签名URL...');
+                // Step 1: Get presigned URL
+                // updateProgress('presigned', 10, 'Getting presigned URL...');
                 
                 const response = await fetch(apiUrl, {
                     method: 'POST',
@@ -491,13 +491,13 @@
                     })
                 });
                 
-                if (!response.ok) throw new Error('获取预签名URL失败');
+                if (!response.ok) throw new Error('Failed to get presigned URL');
                 
                 const data = await response.json();
                 const urlData = data.body ? JSON.parse(data.body) : data;
                 
-                // 步骤2: 上传到S3
-                // updateProgress('presigned', 30, '正在上传文件...');
+                // Step 2: Upload to S3
+                // updateProgress('presigned', 30, 'Uploading file...');
                 
                 const uploadResponse = await fetch(urlData.presigned_url, {
                     method: 'PUT',
@@ -506,19 +506,19 @@
                 });
                 
                 if (uploadResponse.ok) {
-                    // updateProgress('presigned', 100, '上传完成！');
+                    // updateProgress('presigned', 100, 'Upload complete!');
                     showResult('presignedResult', `
-                        <h3>✅ 上传成功！</h3>
-                        <p><strong>存储路径:</strong> ${urlData.file_key}</p>
-                        <p><strong>文件URL:</strong> <a href="${urlData.file_url}" target="_blank">${urlData.file_url}</a></p>
+                        <h3>✅ Upload successful!</h3>
+                        <p><strong>Storage path:</strong> ${urlData.file_key}</p>
+                        <p><strong>File URL:</strong> <a href="${urlData.file_url}" target="_blank">${urlData.file_url}</a></p>
                     `, 'success');
                 } else {
-                    throw new Error('上传到S3失败');
+                    throw new Error('Failed to upload to S3');
                 }
                 
             } catch (error) {
-                // updateProgress('presigned', 0, '上传失败');
-                showResult('presignedResult', `上传错误: ${error.message}`, 'error');
+                // updateProgress('presigned', 0, 'Upload failed');
+                showResult('presignedResult', `Upload error: ${error.message}`, 'error');
             } finally {
                 uploadBtn.disabled = false;
             }
@@ -535,10 +535,10 @@
                     `${(file.size / 1024).toFixed(2)} KB`;
                 
                 fileInfo.innerHTML = `
-                    <h4>📋 文件信息</h4>
-                    <p><strong>文件名:</strong> ${file.name}</p>
-                    <p><strong>大小:</strong> ${fileSizeUnit}</p>
-                    <p><strong>类型:</strong> ${file.type || '未知'}</p>
+                    <h4>📋 File Information</h4>
+                    <p><strong>Filename:</strong> ${file.name}</p>
+                    <p><strong>Size:</strong> ${fileSizeUnit}</p>
+                    <p><strong>Type:</strong> ${file.type || 'Unknown'}</p>
                 `;
                 fileInfo.style.display = 'block';
                 fileInfo.className = 'message info';
@@ -557,7 +557,7 @@
             result.style.display = 'block';
         }
 
-        // 搜索鸟类
+        // Search birds
         async function searchBirds() {
             const birdName = 'crow';//document.getElementById('birdName').value.trim();
             const minCount = document.getElementById('minCount').value || 1;
@@ -579,7 +579,7 @@
             }
         }
 
-        // 加载所有文件
+        // Load all files
         async function loadAllFiles() {
             const resultsContainer = document.getElementById('resultsContainer');
             resultsContainer.innerHTML = '<div class="loading">📂 Loading files...</div>';
@@ -592,7 +592,7 @@
             }
         }
 
-        // 获取统计信息
+        // Get statistics
         async function getStatistics() {
             try {
                 const response = await apiCall('/stats');
@@ -604,7 +604,7 @@
             }
         }
 
-        // 测试API连接
+        // Test API connection
         async function testAPI() {
             const resultsContainer = document.getElementById('resultsContainer');
             resultsContainer.innerHTML = '<div class="loading">🧪 Testing API connection...</div>';
@@ -630,7 +630,7 @@
             }
         }
 
-        // API调用
+        // API call
         async function apiCall(endpoint, options = {}) {
             if (CONFIG.API_ENDPOINT.includes('your-')) {
                 throw new Error('Please configure API_ENDPOINT first');
@@ -654,7 +654,7 @@
             return await response.json();
         }
 
-        // 显示结果
+        // Display results
         function displayResults(data, title) {
             const resultsContainer = document.getElementById('resultsContainer');
             const files = data.files || data.results || [];
@@ -705,13 +705,13 @@
             resultsContainer.innerHTML = html;
         }
 
-        // 显示统计信息
+        // Display statistics
         function displayStatistics(data) {
             if (!data) return;
 
             console.log('Statistics:', data);
 
-            // 可以在这里添加统计信息的显示逻辑
+            // You can add logic to display statistics here
             const statsHtml = `
                 <div class="message info">
                     <h4>📊 System Statistics</h4>
@@ -721,10 +721,10 @@
                 </div>
             `;
 
-            // 可以添加到结果容器或其他位置
+            // Can be added to results container or other location
         }
 
-        // 显示消息
+        // Show message
         function showMessage(message, type = 'info') {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
