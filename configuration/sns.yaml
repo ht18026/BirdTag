@@ -1,0 +1,32 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: SNS topic for BirdTag project with Lambda permissions for publishing.
+
+Resources:
+
+  BirdTagSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: birdtag-all
+
+  BirdTagSNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref BirdTagSNSTopic
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: '*'
+            Action: 'SNS:Publish'
+            Resource: !Ref BirdTagSNSTopic
+            Condition:
+              ArnLike:
+                aws:SourceArn: arn:aws:lambda:*:*:function:*
+
+Outputs:
+  BirdTagTopicArn:
+    Description: ARN of the SNS topic for filtered bird tag alerts
+    Value: !Ref BirdTagSNSTopic
+    Export:
+      Name: BirdTagTopicArn

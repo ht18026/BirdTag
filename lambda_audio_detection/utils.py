@@ -23,7 +23,7 @@ DDB_TABLE = "bird-db"
 
 # Get S3 bucket name from environment variable, use default value if not set
 # This is the S3 bucket that stores model files and labels files
-BUCKET_NAME = os.environ.get("BUCKET_NAME", "birdtag-models-fit5225-g138-shuyang")
+BUCKET_NAME = os.environ.get("BUCKET_NAME", "birdtag-models-fit5225-g138")
 
 def download_file_from_s3(bucket, key, download_path):
     """
