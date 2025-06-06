@@ -2,6 +2,7 @@
 import os      # For operating system related functions like file path operations and environment variable access
 import boto3   # AWS SDK for Python, used to interact with AWS services
 
+
 # Initialize S3 client
 # Used for interacting with Amazon S3 storage service (upload, download, list files, etc.)
 s3 = boto3.client("s3")
@@ -18,9 +19,11 @@ MODEL_ENV = os.environ.get("MODEL_NAME", "BirdNET_Model.tflite")
 # Labels file contains all bird species names that BirdNET model can recognize
 LABELS_FILE = os.environ.get("LABELS_FILE", "BirdNET_Labels.txt")
 
+DDB_TABLE = "bird-db"
+
 # Get S3 bucket name from environment variable, use default value if not set
 # This is the S3 bucket that stores model files and labels files
-BUCKET_NAME = os.environ.get("BUCKET_NAME", "birdtag-models-fit5225-g138")
+BUCKET_NAME = os.environ.get("BUCKET_NAME", "birdtag-models-fit5225-g138-shuyang")
 
 def download_file_from_s3(bucket, key, download_path):
     """
@@ -112,3 +115,40 @@ def get_labels_file_path():
 
     # Return local path of labels file for subsequent label processing
     return tmp_path
+
+
+def write_to_dynamodb(media_id, species_count, file_type, full_url):
+    """
+    Write bird species detection results to DynamoDB table using batch writer
+    
+    Args:
+        media_id (str): Unique identifier for the media file
+        species_count (dict): Dictionary of detected bird species and their counts
+        file_type (str): Type of media file (e.g., 'audio')
+        full_url (str): Full S3 URL of the processed file
+    
+    Purpose:
+        - Store detection results in DynamoDB for later retrieval
+        - Use batch writer for efficient bulk insertions
+        - Create one record per detected bird species
+    """
+    # Initialize DynamoDB resource
+    dynamodb = boto3.resource('dynamodb')
+    table = dynamodb.Table(DDB_TABLE)
+    
+    try:
+        with table.batch_writer() as batch:
+            for bird_tag, count in species_count.items():
+                batch.put_item(Item={
+                    'media_id': media_id,
+                    'bird_tag': bird_tag,
+                    'count': count,
+                    'file_type': file_type,
+                    'full_url': full_url
+                })
+        
+        print(f"Successfully wrote {len(species_count)} species to DynamoDB for {media_id}")
+        
+    except Exception as e:
+        print(f"Error writing to DynamoDB: {e}")
+        raise
