@@ -13,7 +13,7 @@ MODEL_PREFIX = "models/"
 REGION = "us-east-1"
 DDB_TABLE = "bird-db"
 MODEL_ENV = os.environ.get("MODEL_NAME", "model.pt")
-BUCKET_NAME = os.environ.get("BUCKET_NAME", "birdtag-models-fit5225-g138")
+BUCKET_NAME = os.environ.get("BUCKET_NAME", "fit5225-lyla-a3")
 
 def get_model_path():
     tmp_path = os.path.join("/tmp", MODEL_ENV)
