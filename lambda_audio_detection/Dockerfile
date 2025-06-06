@@ -1,22 +1,34 @@
-FROM public.ecr.aws/lambda/python:3.9
+FROM python:3.9-slim-bullseye
 
-# Install only necessary system dependencies for audio processing
-RUN yum install -y \
-    libsndfile \
-    ffmpeg
+# Set working directory
+WORKDIR /var/task
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libsndfile1 ffmpeg libstdc++6 libgomp1 \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and install numpy with version constraint
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir "numpy<2.0"
+RUN pip install --upgrade pip \
+ && pip install --no-cache-dir "numpy<2.0"
 
-# Install only required Python packages
+# Install lightweight audio processing libraries to avoid numba issues
 RUN pip install --no-cache-dir \
-    librosa==0.10.1 \
-    tflite-runtime==2.14.0
+    soundfile==0.12.1 \
+    scipy==1.10.1 \
+    tflite-runtime==2.14.0 \
+    awslambdaric \
+    boto3 \
+ && python -c "from tflite_runtime.interpreter import Interpreter; print('TFLite OK')" \
+ && python -c "import soundfile; import scipy.signal; print('Audio libs OK')"
 
 # Copy application code
-COPY lambda_function.py ./
-COPY utils.py ./
+COPY lambda_function.py utils.py ./
 
-# Set the Lambda handler
+# Set environment variables
+ENV _HANDLER=lambda_function.handler
+
+# Lambda Runtime Interface Client
+ENTRYPOINT ["/usr/local/bin/python3", "-m", "awslambdaric"]
 CMD ["lambda_function.handler"]
