@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'API Gateway for BirdTag System - lambda_presigned_upload API'
+
+Parameters:
+  LambdaFunctionArn:
+    Type: String
+    Description: ARN of the Lambda function to integrate with
+    Default: arn:aws:lambda:us-east-1:149213106517:function:lambda_presigned_upload  # replace with your own lambda function arn
+
+Resources:
+  # API Gateway REST API
+  LambdaPresignedUploadAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: lambda_presigned_upload-API
+      Description: Created by AWS Lambda for presigned upload functionality
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # API Gateway Resource
+  LambdaPresignedUploadResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref LambdaPresignedUploadAPI
+      ParentId: !GetAtt LambdaPresignedUploadAPI.RootResourceId
+      PathPart: lambda_presigned_upload
+
+  # POST Method
+  LambdaPresignedUploadPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref LambdaPresignedUploadAPI
+      ResourceId: !Ref LambdaPresignedUploadResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunctionArn}/invocations'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: !Ref EmptyModel
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: false
+
+  # OPTIONS Method (for CORS)
+  LambdaPresignedUploadOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref LambdaPresignedUploadAPI
+      ResourceId: !Ref LambdaPresignedUploadResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+              method.response.header.Access-Control-Allow-Methods: "'GET,POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            ResponseTemplates:
+              application/json: ''
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: !Ref EmptyModel
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+
+  # Lambda Permission for API Gateway
+  LambdaApiGatewayPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunctionArn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${LambdaPresignedUploadAPI}/*/*'
+
+  # API Gateway Deployment
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - LambdaPresignedUploadPostMethod
+      - LambdaPresignedUploadOptionsMethod
+    Properties:
+      RestApiId: !Ref LambdaPresignedUploadAPI
+      StageName: dev
+
+  # Model for Empty response
+  EmptyModel:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId: !Ref LambdaPresignedUploadAPI
+      ContentType: application/json
+      Name: BirdTagEmptyModel
+      Schema:
+        type: object
+        title: Empty Schema
+
+Outputs:
+  ApiGatewayRestApiId:
+    Description: API Gateway REST API ID  
+    Value: !Ref LambdaPresignedUploadAPI
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiId"
+      
+  ApiGatewayUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${LambdaPresignedUploadAPI}.execute-api.${AWS::Region}.amazonaws.com/dev'
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiUrl"
+      
+  ApiGatewayResourceId:
+    Description: API Gateway Resource ID
+    Value: !Ref LambdaPresignedUploadResource
+    Export:
+      Name: !Sub "${AWS::StackName}-ResourceId" 
