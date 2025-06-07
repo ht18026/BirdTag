@@ -1,0 +1,223 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC setup for BirdTag-A3 system with HA NAT Gateways, private and public subnets, endpoints, and routing
+
+Resources:
+  # VPC
+  VPCBirdTagA3:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: BirdTag-VPC-A3
+
+  # Internet Gateway and Attach
+  IGWA3:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: IGW-A3
+
+  AttachIGWA3:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPCBirdTagA3
+      InternetGatewayId: !Ref IGWA3
+
+  # Subnets
+  PublicSubnet1A3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCBirdTagA3
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs "" ]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnet1-A3
+
+  PublicSubnet2A3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCBirdTagA3
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs "" ]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnet2-A3
+
+  PrivateSubnet1A3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCBirdTagA3
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs "" ]
+      Tags:
+        - Key: Name
+          Value: PrivateSubnet1-A3
+
+  PrivateSubnet2A3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPCBirdTagA3
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs "" ]
+      Tags:
+        - Key: Name
+          Value: PrivateSubnet2-A3
+
+  # Public Route Table
+  PublicRouteTableA3:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCBirdTagA3
+      Tags:
+        - Key: Name
+          Value: PublicRouteTable-A3
+
+  PublicRouteA3:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTableA3
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref IGWA3
+
+  PublicSubnet1RouteAssocA3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1A3
+      RouteTableId: !Ref PublicRouteTableA3
+
+  PublicSubnet2RouteAssocA3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2A3
+      RouteTableId: !Ref PublicRouteTableA3
+
+  # Elastic IPs for NAT Gateways
+  EIPA3A:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  EIPA3B:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  # NAT Gateways (HA)
+  NATGatewayA3A:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt EIPA3A.AllocationId
+      SubnetId: !Ref PublicSubnet1A3
+      Tags:
+        - Key: Name
+          Value: NAT-GW-A3A
+
+  NATGatewayA3B:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt EIPA3B.AllocationId
+      SubnetId: !Ref PublicSubnet2A3
+      Tags:
+        - Key: Name
+          Value: NAT-GW-A3B
+
+  # Private Route Tables
+  PrivateRouteTableA3A:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCBirdTagA3
+      Tags:
+        - Key: Name
+          Value: PrivateRouteTable-A3A
+
+  PrivateRouteTableA3B:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCBirdTagA3
+      Tags:
+        - Key: Name
+          Value: PrivateRouteTable-A3B
+
+  PrivateRouteA3A:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA3A
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGatewayA3A
+
+  PrivateRouteA3B:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA3B
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGatewayA3B
+
+  # Subnet Route Table Associations for Private Subnets
+  PrivateSubnet1RouteAssocA3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1A3
+      RouteTableId: !Ref PrivateRouteTableA3A
+
+  PrivateSubnet2RouteAssocA3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2A3
+      RouteTableId: !Ref PrivateRouteTableA3B
+
+  # VPC Endpoints
+  VPCEndpointS3A3:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.s3
+      VpcId: !Ref VPCBirdTagA3
+      RouteTableIds:
+        - !Ref PrivateRouteTableA3A
+        - !Ref PrivateRouteTableA3B
+      VpcEndpointType: Gateway
+
+  VPCEndpointDynamoDBA3:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.dynamodb
+      VpcId: !Ref VPCBirdTagA3
+      RouteTableIds:
+        - !Ref PrivateRouteTableA3A
+        - !Ref PrivateRouteTableA3B
+      VpcEndpointType: Gateway
+
+Outputs:
+  VPCId:
+    Description: VPC ID
+    Value: !Ref VPCBirdTagA3
+
+  PublicSubnets:
+    Description: Public Subnet IDs
+    Value: !Join [ ",", [ !Ref PublicSubnet1A3, !Ref PublicSubnet2A3 ] ]
+
+  PrivateSubnets:
+    Description: Private Subnet IDs
+    Value: !Join [ ",", [ !Ref PrivateSubnet1A3, !Ref PrivateSubnet2A3 ] ]
+
+  NATGatewayA:
+    Description: NAT Gateway A ID
+    Value: !Ref NATGatewayA3A
+
+  NATGatewayB:
+    Description: NAT Gateway B ID
+    Value: !Ref NATGatewayA3B
+
+  VPCEndpointS3:
+    Description: S3 VPC Endpoint ID
+    Value: !Ref VPCEndpointS3A3
+
+  VPCEndpointDynamoDB:
+    Description: DynamoDB VPC Endpoint ID
+    Value: !Ref VPCEndpointDynamoDBA3
