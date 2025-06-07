@@ -8,7 +8,7 @@ dynamodb_client = boto3.client('dynamodb')
 deserializer = TypeDeserializer()
 
 # Environment variables for table and GSI names (set these in your Lambda configuration)
-TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'bird-db-Shuyang') # Replace 'bird-db-Shuyang' with your actual table name
+TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'bird-db') # Replace 'bird-db-Shuyang' with your actual table name
 GSI_NAME = os.environ.get('DYNAMODB_GSI_NAME', 'bird_tag-index')       # Replace 'birdTagIndex' with your actual GSI name
 
 def lambda_handler(event, context):
