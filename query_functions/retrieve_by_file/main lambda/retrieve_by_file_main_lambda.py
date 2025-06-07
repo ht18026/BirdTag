@@ -2,6 +2,8 @@ import json
 import base64
 import boto3
 import os
+from botocore.exceptions import ClientError
+from urllib.parse import urlparse
 
 # Initialize Lambda client for invoking other Lambda functions
 lambda_client = boto3.client('lambda')
@@ -95,16 +97,22 @@ def lambda_handler(event, context):
         print("=== Starting database query ===")
         result = find_files_by_tags(detected_tags)  # Returns {"links": [...]}
         matching_links = result.get("links", [])    # Extract links array
-        
+
+        # **NEW: Generate presigned URLs for security**
+        print("=== Generating presigned URLs ===")
+        presigned_expiration = int(os.environ.get('PRESIGNED_URL_EXPIRATION', '3600'))  # Default 1 hour
+        presigned_links = generate_presigned_urls_batch(matching_links, presigned_expiration)
+
         print("=== Process completed successfully ===")
         return {
             'statusCode': 200,
             'headers': cors_headers,
             'body': json.dumps({
                 'detected_tags': detected_tags,
-                'links': matching_links,
+                'links': presigned_links,  # Return presigned URLs instead of direct S3 URLs
                 'total_matches': len(matching_links),
-                'message': f'Analysis completed. Found {len(matching_links)} similar files.'
+                'presigned_expiration': presigned_expiration,
+                'message': f'Analysis completed. Found {len(matching_links)} similar files with {presigned_expiration}s access.'
             })
         }
         
@@ -447,3 +455,74 @@ def find_files_by_tags(detected_tags):
         import traceback
         traceback.print_exc()
         raise Exception(f"Database query failed: {str(e)}")
+    
+
+def generate_presigned_url(s3_url, expiration=3600):
+    """Generate a presigned URL for an S3 object"""
+    try:
+        s3_client = boto3.client('s3')
+        bucket_name, object_key = parse_s3_url(s3_url)
+        
+        if not bucket_name or not object_key:
+            print(f"Warning: Could not parse S3 URL: {s3_url}")
+            return s3_url
+        
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': object_key},
+            ExpiresIn=expiration
+        )
+        
+        return presigned_url
+        
+    except ClientError as e:
+        print(f"Error generating presigned URL for {s3_url}: {e}")
+        return s3_url
+    except Exception as e:
+        print(f"Unexpected error generating presigned URL for {s3_url}: {e}")
+        return s3_url
+
+def parse_s3_url(s3_url):
+    """Parse S3 URL to extract bucket name and object key"""
+    if not s3_url:
+        return None, None
+    
+    try:
+        if s3_url.startswith('s3://'):
+            parts = s3_url[5:].split('/', 1)
+            bucket_name = parts[0]
+            object_key = parts[1] if len(parts) > 1 else ''
+            return bucket_name, object_key
+        
+        elif 'amazonaws.com' in s3_url:
+            parsed = urlparse(s3_url)
+            
+            if '.s3.' in parsed.hostname:
+                bucket_name = parsed.hostname.split('.s3.')[0]
+                object_key = parsed.path.lstrip('/')
+                return bucket_name, object_key
+            elif parsed.hostname.startswith('s3.'):
+                path_parts = parsed.path.lstrip('/').split('/', 1)
+                bucket_name = path_parts[0] if path_parts else ''
+                object_key = path_parts[1] if len(path_parts) > 1 else ''
+                return bucket_name, object_key
+        
+        return None, None
+            
+    except Exception as e:
+        print(f"Error parsing S3 URL {s3_url}: {e}")
+        return None, None
+
+def generate_presigned_urls_batch(urls, expiration=3600):
+    """Generate presigned URLs for a list of S3 URLs"""
+    if not urls:
+        return []
+    
+    presigned_urls = []
+    print(f"Generating presigned URLs for {len(urls)} files")
+    
+    for url in urls:
+        presigned_url = generate_presigned_url(url, expiration)
+        presigned_urls.append(presigned_url)
+    
+    return presigned_urls
