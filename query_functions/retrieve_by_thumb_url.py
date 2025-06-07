@@ -8,8 +8,8 @@ dynamodb_client = boto3.client('dynamodb')
 deserializer = TypeDeserializer()
 
 # Environment variables for table and GSI names
-TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'bird-db-Shuyang')
-THUMB_URL_GSI_NAME = os.environ.get('DYNAMODB_THUMB_GSI_NAME', 'thumbUrlIndex') # GSI for thumbnail URL lookup
+TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'bird-db')
+THUMB_URL_GSI_NAME = os.environ.get('DYNAMODB_THUMB_GSI_NAME', 'thumb_url-index') # GSI for thumbnail URL lookup
 
 def lambda_handler(event, context):
     print(f"Received event: {json.dumps(event)}") 

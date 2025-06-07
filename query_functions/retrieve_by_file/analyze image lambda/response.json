@@ -1,0 +1,1 @@
+{"errorMessage": "Image analysis failed: 'file_content'", "errorType": "Exception", "requestId": "1516167f-08e4-4ba0-b87f-232250819657", "stackTrace": ["  File \"/var/task/analyze_image_lambda.py\", line 58, in lambda_handler\n    raise Exception(f\"Image analysis failed: {str(e)}\")\n"]}
