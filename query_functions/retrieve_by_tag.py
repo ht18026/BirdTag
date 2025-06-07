@@ -2,6 +2,8 @@ import json
 import os
 import boto3
 from boto3.dynamodb.types import TypeDeserializer
+from botocore.exceptions import ClientError
+from urllib.parse import urlparse
 
 # Initialize DynamoDB client and TypeDeserializer
 dynamodb_client = boto3.client('dynamodb')
@@ -135,16 +137,97 @@ def lambda_handler(event, context):
                 if full_url:
                     result_links.add(full_url)
 
+        # **NEW: Generate presigned URLs**
+        direct_urls = sorted(list(result_links))
+        presigned_expiration = int(os.environ.get('PRESIGNED_URL_EXPIRATION', '3600'))
+        presigned_urls = generate_presigned_urls_batch(direct_urls, presigned_expiration)
+
         return {
             'statusCode': 200,
-            'body': json.dumps({"links": sorted(list(result_links))}) # Sorted for consistent output
+            'body': json.dumps({
+                "links": presigned_urls,  # Return presigned URLs
+                "total_matches": len(direct_urls),
+                "presigned_expiration": presigned_expiration
+            })
         }
 
     except Exception as e:
-        print(f"Unhandled error in lambda_handler: {e}") # Log to CloudWatch
+        print(f"Unhandled error in lambda_handler: {e}")
         import traceback
         traceback.print_exc()
         return {
             'statusCode': 500,
             'body': json.dumps({'error': 'Internal server error. Check Lambda logs for details.'})
         }
+    
+
+# **NEW: Add presigned URL functions**
+def generate_presigned_url(s3_url, expiration=3600):
+    """Generate a presigned URL for an S3 object"""
+    try:
+        s3_client = boto3.client('s3')
+        bucket_name, object_key = parse_s3_url(s3_url)
+        
+        if not bucket_name or not object_key:
+            print(f"Warning: Could not parse S3 URL: {s3_url}")
+            return s3_url
+        
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': object_key},
+            ExpiresIn=expiration
+        )
+        
+        return presigned_url
+        
+    except ClientError as e:
+        print(f"Error generating presigned URL for {s3_url}: {e}")
+        return s3_url
+    except Exception as e:
+        print(f"Unexpected error generating presigned URL for {s3_url}: {e}")
+        return s3_url
+
+def parse_s3_url(s3_url):
+    """Parse S3 URL to extract bucket name and object key"""
+    if not s3_url:
+        return None, None
+    
+    try:
+        if s3_url.startswith('s3://'):
+            parts = s3_url[5:].split('/', 1)
+            bucket_name = parts[0]
+            object_key = parts[1] if len(parts) > 1 else ''
+            return bucket_name, object_key
+        
+        elif 'amazonaws.com' in s3_url:
+            parsed = urlparse(s3_url)
+            
+            if '.s3.' in parsed.hostname:
+                bucket_name = parsed.hostname.split('.s3.')[0]
+                object_key = parsed.path.lstrip('/')
+                return bucket_name, object_key
+            elif parsed.hostname.startswith('s3.'):
+                path_parts = parsed.path.lstrip('/').split('/', 1)
+                bucket_name = path_parts[0] if path_parts else ''
+                object_key = path_parts[1] if len(path_parts) > 1 else ''
+                return bucket_name, object_key
+        
+        return None, None
+            
+    except Exception as e:
+        print(f"Error parsing S3 URL {s3_url}: {e}")
+        return None, None
+
+def generate_presigned_urls_batch(urls, expiration=3600):
+    """Generate presigned URLs for a list of S3 URLs"""
+    if not urls:
+        return []
+    
+    presigned_urls = []
+    print(f"Generating presigned URLs for {len(urls)} files")
+    
+    for url in urls:
+        presigned_url = generate_presigned_url(url, expiration)
+        presigned_urls.append(presigned_url)
+    
+    return presigned_urls
