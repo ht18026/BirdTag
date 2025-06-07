@@ -5,7 +5,7 @@ Resources:
   BirdBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: birdtag-models-fit5225-g138-test
+      BucketName: birdtag-models-fit5225-g138
       CorsConfiguration:
         CorsRules:
           - AllowedHeaders:
