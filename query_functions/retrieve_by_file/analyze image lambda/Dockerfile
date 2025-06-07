@@ -1,5 +1,9 @@
 FROM public.ecr.aws/lambda/python:3.9
+
+# Install system dependencies for OpenCV
 RUN yum install -y mesa-libGL
+
+# Upgrade pip and install numpy with version constraint
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir "numpy<2.0" && \
     pip install --no-cache-dir \
@@ -11,6 +15,9 @@ RUN pip install --upgrade pip && \
         ultralytics \
         opencv-python-headless==4.9.0.80 \
         supervision
-COPY lambda_function.py ./
-CMD ["lambda_function.handler"]
 
+# Copy application code
+COPY analyze_image_lambda.py ./
+
+# Set the Lambda handler
+CMD ["analyze_image_lambda.lambda_handler"]

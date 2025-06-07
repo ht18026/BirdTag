@@ -40,14 +40,36 @@ def lambda_handler(event, context):
         file_content, filename, content_type = parse_multipart_request(event)
         print(f"Received file: {filename} ({content_type}, {len(file_content)} bytes)")
         
-        # Validate file size (6MB limit)
-        max_size = 6 * 1024 * 1024  # 6MB
-        if len(file_content) > max_size:
+        # Correction: The real limit is Lambda invoke's 6MB, not 6MB original file
+        # Calculate Base64 encoded size
+        base64_encoded_size = len(base64.b64encode(file_content))
+        json_overhead = 1024  # Reserve space for filename, content_type and other fields
+        lambda_invoke_limit = 6 * 1024 * 1024  # 6MB
+        
+        estimated_payload_size = base64_encoded_size + json_overhead
+        
+        print(f"File analysis:")
+        print(f"  Original file size: {len(file_content)/1024/1024:.2f}MB")
+        print(f"  Base64 encoded size: {base64_encoded_size/1024/1024:.2f}MB")
+        print(f"  Estimated payload size: {estimated_payload_size/1024/1024:.2f}MB")
+        print(f"  Lambda invoke limit: {lambda_invoke_limit/1024/1024:.2f}MB")
+        
+        # Check if it will exceed Lambda invoke limit
+        if estimated_payload_size > lambda_invoke_limit:
+            max_supported_file_size = (lambda_invoke_limit - json_overhead) * 3 / 4
             return {
                 'statusCode': 413,
                 'headers': cors_headers,
                 'body': json.dumps({
-                    'error': f'File too large. Maximum: {max_size//1024//1024}MB'
+                    'error': 'File too large for processing',
+                    'details': {
+                        'file_size_mb': round(len(file_content)/1024/1024, 2),
+                        'encoded_size_mb': round(base64_encoded_size/1024/1024, 2),
+                        'payload_size_mb': round(estimated_payload_size/1024/1024, 2),
+                        'limit_mb': round(lambda_invoke_limit/1024/1024, 2),
+                        'max_supported_file_mb': round(max_supported_file_size/1024/1024, 1)
+                    },
+                    'message': f'Maximum supported file size: {max_supported_file_size/1024/1024:.1f}MB'
                 })
             }
         
@@ -100,24 +122,31 @@ def lambda_handler(event, context):
 def call_analysis_lambda(file_content, filename, content_type):
     """
     Call appropriate analysis Lambda function based on file type
-    
-    Args:
-        file_content (bytes): Raw file content
-        filename (str): Original filename
-        content_type (str): MIME type of the file
-        
-    Returns:
-        list: List of detected bird species tags
+    Add payload size validation
     """
     
-    # Prepare payload for analysis Lambda function
+    # Prepare payload
     payload = {
         'file_content': base64.b64encode(file_content).decode('utf-8'),
         'filename': filename,
         'content_type': content_type
     }
     
-    # Select Lambda function based on file type
+    # Critical check: Validate payload size
+    payload_json = json.dumps(payload)
+    payload_size = len(payload_json.encode('utf-8'))
+    lambda_invoke_limit = 6 * 1024 * 1024  # 6MB limit
+    
+    print(f"File size: {len(file_content)/1024/1024:.2f}MB")
+    print(f"Base64 encoded size: {len(payload['file_content'])/1024/1024:.2f}MB") 
+    print(f"Total payload size: {payload_size/1024/1024:.2f}MB")
+    print(f"Lambda invoke limit: {lambda_invoke_limit/1024/1024:.2f}MB")
+    
+    # Check if exceeds limit
+    if payload_size > lambda_invoke_limit:
+        raise Exception(f"Payload too large for Lambda invoke: {payload_size/1024/1024:.2f}MB > {lambda_invoke_limit/1024/1024:.2f}MB")
+    
+    # Select Lambda function
     if content_type.startswith('audio/'):
         function_name = os.environ.get('AUDIO_ANALYSIS_FUNCTION', 'analyze_audio_lambda')
     elif content_type.startswith('image/'):
@@ -129,12 +158,13 @@ def call_analysis_lambda(file_content, filename, content_type):
     
     try:
         print(f"Calling analysis function: {function_name}")
+        print(f"Payload size: {payload_size/1024/1024:.2f}MB")
         
-        # Invoke the corresponding Lambda function synchronously
+        # Lambda invocation
         response = lambda_client.invoke(
             FunctionName=function_name,
-            InvocationType='RequestResponse',  # Synchronous invocation
-            Payload=json.dumps(payload)
+            InvocationType='RequestResponse',
+            Payload=payload_json
         )
         print(f"Lambda response: {response}")
         
@@ -154,7 +184,13 @@ def call_analysis_lambda(file_content, filename, content_type):
     except Exception as e:
         print(f"Lambda invoke error: {str(e)}")
         print(f"Function name: {function_name}")
-        print(f"Payload size: {len(json.dumps(payload))}")
+        print(f"Payload size: {payload_size/1024/1024:.2f}MB")
+        
+        # If payload too large error, provide clearer error message
+        if "too large" in str(e).lower() or "request entity too large" in str(e).lower():
+            max_file_size = (lambda_invoke_limit - 1024) * 3 / 4  # Subtract JSON overhead
+            raise Exception(f"File too large for processing. Maximum supported file size: {max_file_size/1024/1024:.1f}MB")
+        
         raise
 
 def parse_multipart_request(event):

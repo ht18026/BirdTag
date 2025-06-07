@@ -3,7 +3,6 @@
 import os
 from collections import Counter
 
-from boto3 import dynamodb
 from ultralytics import YOLO
 import supervision as sv
 import cv2 as cv
@@ -28,6 +27,7 @@ def get_model_path():
     return tmp_path
 
 def write_to_dynamodb(media_id, species_count, file_type, full_url, thumb_url):
+    dynamodb = boto3.resource('dynamodb')
     table = dynamodb.Table(DDB_TABLE)
     with table.batch_writer() as batch:
         for bird_tag, count in species_count.items():
@@ -123,7 +123,7 @@ def handler(event, context):
     full_url = f"https://{bucket}.s3.{REGION}.amazonaws.com/{key}"
     thumb_url = f"https://{bucket}.s3.{REGION}.amazonaws.com/{thumb_key}"
 
-    # Step 6: Write to DynamoDB
+    #Write to DynamoDB
     write_to_dynamodb(
         media_id=key,
         species_count=species_count,
