@@ -2,6 +2,7 @@ import base64
 import tempfile
 import os
 import boto3
+import time
 from collections import Counter, defaultdict
 
 def lambda_handler(event, context):
@@ -92,7 +93,7 @@ def create_temp_video_file(file_content, filename):
 
 def analyze_video_file(video_path):
     """
-    Core video analysis logic - uses same video_prediction function as lambda_function.py
+    Core video analysis logic - uses optimized video_prediction function
     
     Args:
         video_path (str): Path to temporary video file
@@ -104,7 +105,7 @@ def analyze_video_file(video_path):
         # Get model file path (download from S3 if needed)
         model_path = get_model_path()
         
-        # Execute prediction using YOLO model
+        # Execute prediction using YOLO model with smart frame skipping
         detected_species = video_prediction(video_path, model_path)
         
         return detected_species
@@ -117,8 +118,7 @@ def analyze_video_file(video_path):
 
 def video_prediction(video_path, model_path, confidence=0.5):
     """
-    Video bird species identification prediction function using YOLO
-    Complete implementation referenced from lambda_function.py
+    Optimized video bird species identification using YOLO with smart frame skipping
     
     Args:
         video_path (str): Path to video file for analysis
@@ -135,83 +135,252 @@ def video_prediction(video_path, model_path, confidence=0.5):
         import supervision as sv
         import cv2 as cv
         
-        print("Using YOLO for video analysis")
+        print("Using YOLO for optimized video analysis with smart frame skipping")
         
         # Load YOLO model
         model = YOLO(model_path)
-        class_dict = model.names  # Get class names from model
+        class_dict = model.names
         
         print(f"Loaded YOLO model with {len(class_dict)} classes")
         
-        # Load video info and extract frames per second (fps)
+        # Load video info
         video_info = sv.VideoInfo.from_video_path(video_path=video_path)
         fps = int(video_info.fps)
-        print(f"Video info: {video_info.width}x{video_info.height}, {fps} FPS, {video_info.total_frames} frames")
+        total_frames = video_info.total_frames
+        duration = total_frames / fps if fps > 0 else 0
         
-        # Initialize tracker with the video's frame rate
-        tracker = sv.ByteTrack(frame_rate=fps)
+        print(f"Video info: {video_info.width}x{video_info.height}, {fps} FPS, {total_frames} frames, {duration:.2f}s")
         
-        # Capture the video from the given path
+        # Smart frame skipping strategy
+        frame_skip_interval = calculate_frame_skip_interval(fps, total_frames, duration)
+        print(f"Frame skip strategy: analyzing every {frame_skip_interval} frames")
+        
+        # Initialize tracker with adjusted frame rate
+        adjusted_fps = max(1, fps // frame_skip_interval)
+        tracker = sv.ByteTrack(frame_rate=adjusted_fps)
+        
+        # Capture the video
         cap = cv.VideoCapture(video_path)
         if not cap.isOpened():
             raise Exception("Error: couldn't open the video!")
         
-        # Track maximum species counts across all frames
+        # Track maximum species counts
         max_species_counts = defaultdict(int)
         frame_count = 0
+        processed_count = 0
         
-        print("Starting frame-by-frame analysis...")
+        print("Starting optimized frame analysis...")
+        start_time = time.time()
         
-        # Process the video frame by frame (NO frame skipping - process every frame)
+        # Optimized frame processing loop
         while cap.isOpened():
             ret, frame = cap.read()
-            if not ret:  # End of the video
+            if not ret:
                 break
             
             frame_count += 1
             
+            # Frame skipping logic - only process frames at specified intervals
+            if frame_count % frame_skip_interval != 0:
+                continue
+            
+            processed_count += 1
+            
             try:
-                # Make predictions on the current frame using the YOLO model
-                result = model(frame)[0]
-                detections = sv.Detections.from_ultralytics(result)  # Convert model output to Detections format
-                detections = tracker.update_with_detections(detections=detections)  # Track detected objects
+                # Frame resolution optimization
+                optimized_frame = optimize_frame_for_analysis(frame)
                 
-                # Filter detections based on confidence threshold
+                # Analyze current frame
+                result = model(optimized_frame)[0]
+                detections = sv.Detections.from_ultralytics(result)
+                detections = tracker.update_with_detections(detections=detections)
+                
+                # Filter low confidence detections
                 if detections.tracker_id is not None:
-                    detections = detections[(detections.confidence > confidence)]  # Keep detections with confidence greater than threshold
+                    # Dynamic confidence adjustment
+                    dynamic_confidence = adaptive_confidence_threshold(processed_count, confidence)
+                    detections = detections[(detections.confidence > dynamic_confidence)]
                     
-                    # Get list of class names for this frame
+                    # Count species
                     species_names = [class_dict[cls_id] for cls_id in detections.class_id]
-                    
-                    # Count occurrences in this frame
                     frame_species_count = Counter(species_names)
                     
-                    # Update max counts
+                    # Update maximum counts
                     for species, count in frame_species_count.items():
                         max_species_counts[species] = max(max_species_counts[species], count)
                     
-                    # Log progress periodically (but process every frame)
-                    if frame_count % 100 == 0:  # Log every 100 frames
-                        print(f"Processed frame {frame_count}, current detections: {dict(frame_species_count)}")
+                    # Periodic progress reporting
+                    if processed_count % 20 == 0:
+                        elapsed_time = time.time() - start_time
+                        progress = (frame_count / total_frames) * 100
+                        print(f"Progress: {progress:.1f}% (frame {frame_count}/{total_frames}, processed {processed_count}, time: {elapsed_time:.1f}s)")
+                        if frame_species_count:
+                            print(f"Current detections: {dict(frame_species_count)}")
+                
+                # Early exit strategy - if approaching timeout limit
+                elapsed_time = time.time() - start_time
+                if elapsed_time > get_max_processing_time():
+                    print(f"Approaching timeout limit, stopping analysis at frame {frame_count}")
+                    break
                 
             except Exception as e:
                 print(f"Warning: Error processing frame {frame_count}: {e}")
-                continue  # Continue with next frame if one fails
+                continue
         
         cap.release()
         
+        elapsed_time = time.time() - start_time
+        analysis_ratio = processed_count / total_frames if total_frames > 0 else 0
+        
         result_dict = dict(max_species_counts)
-        print(f"Video analysis completed. Max species count per frame: {result_dict}")
+        print(f"Video analysis completed in {elapsed_time:.2f}s")
+        print(f"Analyzed {processed_count}/{total_frames} frames ({analysis_ratio:.1%})")
+        print(f"Max species count: {result_dict}")
+        
+        # Performance monitoring
+        log_performance_metrics(start_time, total_frames, processed_count, result_dict)
         
         return result_dict
         
     except ImportError as e:
         print(f"Missing required libraries: {e}")
-        print("Please ensure YOLO and video processing dependencies are installed")
         raise Exception(f"Video analysis libraries not available: {e}")
     except Exception as e:
         print(f"Error in video prediction: {e}")
         raise
+
+def calculate_frame_skip_interval(fps, total_frames, duration):
+    """
+    Calculate optimal frame skip interval to balance analysis quality and processing time
+    
+    Args:
+        fps (int): Video frame rate
+        total_frames (int): Total frame count
+        duration (float): Video duration in seconds
+    
+    Returns:
+        int: Frame skip interval
+    """
+    # Get configuration from environment variables
+    target_processing_time = int(os.environ.get('TARGET_PROCESSING_TIME', '25'))  # Target processing time
+    max_target_frames = int(os.environ.get('MAX_ANALYZED_FRAMES', '300'))  # Maximum target analysis frames
+    
+    # Adaptive strategy based on video duration
+    if duration <= 5:  # Very short video (≤5 seconds)
+        skip_interval = max(1, fps // 6)  # Analyze 6 frames per second
+        print(f"Short video strategy: {skip_interval} frame skip")
+    elif duration <= 15:  # Short video (5-15 seconds)
+        skip_interval = max(1, fps // 4)  # Analyze 4 frames per second
+        print(f"Medium-short video strategy: {skip_interval} frame skip")
+    elif duration <= 30:  # Medium video (15-30 seconds)
+        skip_interval = max(1, fps // 2)  # Analyze 2 frames per second
+        print(f"Medium video strategy: {skip_interval} frame skip")
+    elif duration <= 60:  # Long video (30-60 seconds)
+        skip_interval = fps  # Analyze 1 frame per second
+        print(f"Long video strategy: {skip_interval} frame skip")
+    elif duration <= 120:  # Very long video (60-120 seconds)
+        skip_interval = fps * 2  # Analyze 1 frame every 2 seconds
+        print(f"Very long video strategy: {skip_interval} frame skip")
+    else:  # Extra long video (>120 seconds)
+        skip_interval = fps * 3  # Analyze 1 frame every 3 seconds
+        print(f"Extra long video strategy: {skip_interval} frame skip")
+    
+    # Ensure not exceeding target frame count
+    estimated_frames = total_frames // skip_interval
+    if estimated_frames > max_target_frames:
+        skip_interval = max(1, total_frames // max_target_frames)
+        print(f"Adjusted skip interval to {skip_interval} to limit frames to {max_target_frames}")
+    
+    # Ensure reasonable range
+    skip_interval = max(1, min(skip_interval, fps * 5))  # Maximum 5 second interval
+    
+    estimated_final_frames = total_frames // skip_interval
+    estimated_time = estimated_final_frames * 0.1  # Estimate 0.1 seconds per frame processing time
+    
+    print(f"Video analysis plan:")
+    print(f"  Duration: {duration:.1f}s, FPS: {fps}, Total frames: {total_frames}")
+    print(f"  Skip interval: {skip_interval}")
+    print(f"  Frames to analyze: ~{estimated_final_frames}")
+    print(f"  Estimated processing time: ~{estimated_time:.1f}s")
+    
+    return skip_interval
+
+def optimize_frame_for_analysis(frame, target_size=None):
+    """
+    Optimize frame resolution to improve processing speed
+    
+    Args:
+        frame: Original frame
+        target_size: Target size, obtained from environment variables
+    
+    Returns:
+        optimized_frame: Optimized frame
+    """
+    import cv2 as cv
+    
+    if target_size is None:
+        target_size = int(os.environ.get('TARGET_FRAME_SIZE', '640'))
+    
+    height, width = frame.shape[:2]
+    
+    # If original resolution is too high, perform scaling
+    if max(width, height) > target_size:
+        # Maintain aspect ratio
+        if width > height:
+            new_width = target_size
+            new_height = int(height * target_size / width)
+        else:
+            new_height = target_size
+            new_width = int(width * target_size / height)
+        
+        optimized_frame = cv.resize(frame, (new_width, new_height), interpolation=cv.INTER_LINEAR)
+        return optimized_frame
+    
+    return frame
+
+def adaptive_confidence_threshold(processed_count, base_confidence=0.5):
+    """
+    Dynamically adjust confidence threshold based on processing progress
+    
+    Args:
+        processed_count (int): Number of processed frames
+        base_confidence (float): Base confidence threshold
+    
+    Returns:
+        float: Adjusted confidence threshold
+    """
+    # Use lower confidence in early stages to capture more detections
+    if processed_count < 30:
+        return base_confidence * 0.8
+    # Use standard confidence in middle stages
+    elif processed_count < 150:
+        return base_confidence
+    # Increase confidence in later stages to reduce false positives
+    else:
+        return base_confidence * 1.1
+
+def get_max_processing_time():
+    """
+    Get maximum processing time, leaving buffer for API Gateway timeout
+    
+    Returns:
+        int: Maximum processing time in seconds
+    """
+    return int(os.environ.get('MAX_PROCESSING_TIME', '25'))  # Default 25 seconds, leaving 5 seconds buffer for 30-second API Gateway
+
+def log_performance_metrics(start_time, total_frames, processed_frames, detections_found):
+    """Log performance metrics"""
+    elapsed_time = time.time() - start_time
+    fps_processed = processed_frames / elapsed_time if elapsed_time > 0 else 0
+    analysis_ratio = processed_frames / total_frames if total_frames > 0 else 0
+    
+    print(f"=== Performance Metrics ===")
+    print(f"Total processing time: {elapsed_time:.2f}s")
+    print(f"Frames analyzed: {processed_frames}/{total_frames} ({analysis_ratio:.1%})")
+    print(f"Processing speed: {fps_processed:.1f} frames/second")
+    print(f"Species detected: {len(detections_found)}")
+    if processed_frames > 0:
+        print(f"Detection efficiency: {len(detections_found)/processed_frames:.3f} species/frame")
 
 def get_model_path():
     """
@@ -234,10 +403,10 @@ def get_model_path():
         try:
             print(f"Downloading model from s3://{bucket}/{model_s3_key}")
             s3_client.download_file(bucket, model_s3_key, model_local_path)
-            print(f"Downloaded video model to {model_local_path}")
+            print(f"Downloaded video model to {model_local_path} (size: {os.path.getsize(model_local_path)} bytes)")
         except Exception as e:
             raise Exception(f"Failed to download video model from s3://{bucket}/{model_s3_key}: {e}")
     else:
-        print(f"Model already cached at {model_local_path}")
+        print(f"Model already cached at {model_local_path} (size: {os.path.getsize(model_local_path)} bytes)")
     
     return model_local_path
