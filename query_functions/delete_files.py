@@ -16,31 +16,44 @@ FULL_URL_GSI_NAME = os.environ.get('DYNAMODB_FULL_GSI_NAME', 'full_url-index')
 
 def parse_s3_url(s3_url):
     """Parses an S3 URL into bucket and key."""
+    if not s3_url:
+        return None, None
+        
     try:
         parsed_url = urlparse(s3_url)
+        
+        # Handle s3:// format
         if parsed_url.scheme == 's3':
             bucket_name = parsed_url.netloc
             key = parsed_url.path.lstrip('/')
             return bucket_name, key
-        elif parsed_url.scheme in ['http', 'https'] and '.s3.' in parsed_url.netloc:
-            # Handles virtual-hosted style URLs like https://bucket.s3.region.amazonaws.com/key
-            # or path-style if S3 is part of the path, e.g. https://s3.region.amazonaws.com/bucket/key
             
-            # For virtual hosted: bucket.s3.amazonaws.com
-            # For path style: s3.amazonaws.com (bucket is first part of path)
+        # Handle HTTPS/HTTP S3 URLs
+        elif parsed_url.scheme in ['http', 'https'] and 'amazonaws.com' in parsed_url.netloc:
             
-            host_parts = parsed_url.netloc.split('.')
-            if "s3" == host_parts[0] or (len(host_parts) > 1 and "s3" == host_parts[1]): # path-style or s3-region.amazonaws.com
+            # Virtual-hosted style: https://bucket.s3.region.amazonaws.com/key
+            if '.s3.' in parsed_url.netloc:
+                host_parts = parsed_url.netloc.split('.')
+                
+                # Ensure it's the correct virtual-hosted format
+                # bucket-name.s3.region.amazonaws.com
+                s3_index = next((i for i, part in enumerate(host_parts) if part == 's3'), -1)
+                
+                if s3_index == 1 and len(host_parts) >= 4:  # bucket.s3.region.amazonaws.com
+                    bucket_name = host_parts[0]
+                    key = parsed_url.path.lstrip('/')
+                    return bucket_name, key
+                    
+            # Path style: https://s3.region.amazonaws.com/bucket/key
+            elif parsed_url.netloc.startswith('s3.') or parsed_url.netloc.startswith('s3-'):
                 path_parts = parsed_url.path.lstrip('/').split('/', 1)
-                if len(path_parts) >= 1: # Check if path_parts is not empty
+                if len(path_parts) >= 1:
                     bucket_name = path_parts[0]
                     key = path_parts[1] if len(path_parts) > 1 else ''
                     return bucket_name, key
-            elif "s3" in parsed_url.netloc: # virtual-hosted
-                bucket_name = host_parts[0]
-                key = parsed_url.path.lstrip('/')
-                return bucket_name, key
+        
         return None, None
+        
     except Exception as e:
         print(f"Error parsing S3 URL '{s3_url}': {e}")
         return None, None

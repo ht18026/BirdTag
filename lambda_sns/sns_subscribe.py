@@ -3,7 +3,7 @@ import boto3
 
 sns = boto3.client('sns')
 
-SNS_TOPIC_ARN = "arn:aws:sns:us-east-1:590183942241:birdtag-all"
+SNS_TOPIC_ARN = "arn:aws:sns:us-east-1:590183942241:birdtag-all" # update your own sns ARN
 
 
 def lambda_handler(event, context):
