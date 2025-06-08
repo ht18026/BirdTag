@@ -9,177 +9,153 @@ from urllib.parse import urlparse
 dynamodb_client = boto3.client('dynamodb')
 deserializer = TypeDeserializer()
 
-# Environment variables for table and GSI names (set these in your Lambda configuration)
-TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'bird-db') # Replace 'bird-db-Shuyang' with your actual table name
-GSI_NAME = os.environ.get('DYNAMODB_GSI_NAME', 'bird_tag-index')       # Replace 'birdTagIndex' with your actual GSI name
+# Environment variables for table and GSI names
+TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'bird-db')
+GSI_NAME = os.environ.get('DYNAMODB_GSI_NAME', 'bird_tag-index')
+
+# CORS headers wrapper
+def add_cors_headers(response):
+    response['headers'] = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+        'Access-Control-Allow-Methods': 'OPTIONS,POST'
+    }
+    return response
 
 def lambda_handler(event, context):
     try:
-        # 1. Parse the input JSON from the request body
         try:
-            # Assuming input is a list of bird tags, e.g., ["crow", "pigeon"]
             request_body = json.loads(event.get('body', '[]'))
         except json.JSONDecodeError:
-            return {
+            return add_cors_headers({
                 'statusCode': 400,
                 'body': json.dumps({'error': 'Invalid JSON in request body'})
-            }
+            })
 
-        # Ensure the parsed body is a list
         if not isinstance(request_body, list):
-            return {
+            return add_cors_headers({
                 'statusCode': 400,
                 'body': json.dumps({'error': 'Request body must be a list of bird tags.'})
-            }
+            })
 
         if not request_body:
-            return {
+            return add_cors_headers({
                 'statusCode': 400,
                 'body': json.dumps({'error': 'Request body is empty. Please provide bird tags.'})
-            }
+            })
 
-        # 2. For each tag in the input, query the GSI
-        #    Store media_ids that satisfy the condition (at least one present) for each tag
-        #    Also cache media details to avoid re-fetching
-        
         sets_of_media_ids_for_each_tag = []
-        media_details_cache = {}  # { "media_id_1": {details}, "media_id_2": {details} }
+        media_details_cache = {}
 
-        # The input is expected to be a list of bird species, e.g., ["crow", "pigeon"]
-        for bird_species in request_body: 
+        for bird_species in request_body:
             if not isinstance(bird_species, str) or not bird_species.strip():
-                # Optionally, you can skip invalid entries or return an error
                 print(f"Warning: Invalid or empty bird species tag found: '{bird_species}'. Skipping.")
-                continue # Or return a 400 error
+                continue
 
             current_tag_media_ids = set()
-            
-            # Paginate through GSI query results
+
             paginator = dynamodb_client.get_paginator('query')
             try:
                 page_iterator = paginator.paginate(
                     TableName=TABLE_NAME,
                     IndexName=GSI_NAME,
                     KeyConditionExpression="bird_tag = :tag_val",
-                    # FilterExpression removed as per requirement
                     ExpressionAttributeValues={
                         ":tag_val": {"S": bird_species}
                     },
-                    # Project all necessary attributes. Ensure your GSI is configured to project these.
-                    # 'count' is no longer strictly needed for projection if only used for the removed filter,
-                    # but keeping it in ProjectionExpression doesn't harm if GSI projects it.
-                    ProjectionExpression="media_id, file_type, full_url, thumb_url" 
+                    ProjectionExpression="media_id, file_type, full_url, thumb_url"
                 )
 
                 for page in page_iterator:
                     for item_raw in page.get('Items', []):
-                        # Deserialize DynamoDB item to Python dict
                         item = {k: deserializer.deserialize(v) for k, v in item_raw.items()}
-                        
                         media_id = item.get('media_id')
                         if media_id:
                             current_tag_media_ids.add(media_id)
-                            # Cache details if not already present.
-                            # Assumes file_type, full_url, thumb_url are consistent for a given media_id
                             if media_id not in media_details_cache:
                                 media_details_cache[media_id] = {
                                     'file_type': item.get('file_type'),
                                     'full_url': item.get('full_url'),
-                                    'thumb_url': item.get('thumb_url') # Will be None if not present
+                                    'thumb_url': item.get('thumb_url')
                                 }
             except Exception as e:
                 print(f"Error querying DynamoDB for tag '{bird_species}': {e}")
-                return {
+                return add_cors_headers({
                     'statusCode': 500,
                     'body': json.dumps({'error': f'Failed to query data for tag: {bird_species}. Details: {str(e)}'})
-                }
+                })
 
-            # If any tag yields no results (no media file contains this bird), 
-            # the final intersection will be empty.
             if not current_tag_media_ids:
-                return {
+                return add_cors_headers({
                     'statusCode': 200,
-                    'body': json.dumps({"links": []})
-                }
+                    'body': json.dumps({"results": []})
+                })
+
             sets_of_media_ids_for_each_tag.append(current_tag_media_ids)
 
-        # 3. Perform intersection of media_ids
-        # This ensures that the resulting media files contain ALL specified bird species.
-        if not sets_of_media_ids_for_each_tag: 
-            # This case should be covered if request_body is not empty but all queries fail to find tags,
-            # or if request_body was empty initially (though that's checked earlier).
-            return {
+        if not sets_of_media_ids_for_each_tag:
+            return add_cors_headers({
                 'statusCode': 200,
-                'body': json.dumps({"links": []})
-            }
+                'body': json.dumps({"results": []})
+            })
 
-        # Start with the first set and intersect with the rest
         intersected_media_ids = sets_of_media_ids_for_each_tag[0].copy()
         for i in range(1, len(sets_of_media_ids_for_each_tag)):
             intersected_media_ids.intersection_update(sets_of_media_ids_for_each_tag[i])
 
-        # 4. Construct the response with URLs
-        result_links = set() # Use a set to avoid duplicate URLs
+        results = []
         for media_id in intersected_media_ids:
             details = media_details_cache.get(media_id)
             if not details:
-                print(f"Warning: Details for media_id {media_id} not found in cache. Skipping.")
                 continue
 
             file_type = details.get('file_type')
-            
-            if file_type == 'image':
-                thumb_url = details.get('thumb_url')
-                if thumb_url:
-                    result_links.add(thumb_url)
-            else: # For videos or other types, use the full_url
-                full_url = details.get('full_url')
-                if full_url:
-                    result_links.add(full_url)
+            thumb_url = details.get('thumb_url')
+            full_url = details.get('full_url')
 
-        # **NEW: Generate presigned URLs**
-        direct_urls = sorted(list(result_links))
+            presigned_thumb = generate_presigned_url(thumb_url) if thumb_url else None
+            presigned_full = generate_presigned_url(full_url) if full_url else None
+
+            results.append({
+                "file_type": file_type,
+                "full_url": presigned_full,
+                "thumb_url": presigned_thumb
+            })
+
         presigned_expiration = int(os.environ.get('PRESIGNED_URL_EXPIRATION', '3600'))
-        presigned_urls = generate_presigned_urls_batch(direct_urls, presigned_expiration)
 
-        return {
+        return add_cors_headers({
             'statusCode': 200,
             'body': json.dumps({
-                "links": presigned_urls,  # Return presigned URLs
-                "total_matches": len(direct_urls),
+                "results": results,
+                "total_matches": len(results),
                 "presigned_expiration": presigned_expiration
             })
-        }
+        })
 
     except Exception as e:
         print(f"Unhandled error in lambda_handler: {e}")
         import traceback
         traceback.print_exc()
-        return {
+        return add_cors_headers({
             'statusCode': 500,
             'body': json.dumps({'error': 'Internal server error. Check Lambda logs for details.'})
-        }
-    
+        })
 
-# **NEW: Add presigned URL functions**
 def generate_presigned_url(s3_url, expiration=3600):
-    """Generate a presigned URL for an S3 object"""
     try:
         s3_client = boto3.client('s3')
         bucket_name, object_key = parse_s3_url(s3_url)
-        
         if not bucket_name or not object_key:
             print(f"Warning: Could not parse S3 URL: {s3_url}")
             return s3_url
-        
-        presigned_url = s3_client.generate_presigned_url(
+
+        return s3_client.generate_presigned_url(
             'get_object',
             Params={'Bucket': bucket_name, 'Key': object_key},
             ExpiresIn=expiration
         )
-        
-        return presigned_url
-        
+
     except ClientError as e:
         print(f"Error generating presigned URL for {s3_url}: {e}")
         return s3_url
@@ -188,46 +164,19 @@ def generate_presigned_url(s3_url, expiration=3600):
         return s3_url
 
 def parse_s3_url(s3_url):
-    """Parse S3 URL to extract bucket name and object key"""
     if not s3_url:
         return None, None
-    
     try:
         if s3_url.startswith('s3://'):
             parts = s3_url[5:].split('/', 1)
-            bucket_name = parts[0]
-            object_key = parts[1] if len(parts) > 1 else ''
-            return bucket_name, object_key
-        
+            return parts[0], parts[1] if len(parts) > 1 else ''
         elif 'amazonaws.com' in s3_url:
             parsed = urlparse(s3_url)
-            
             if '.s3.' in parsed.hostname:
-                bucket_name = parsed.hostname.split('.s3.')[0]
-                object_key = parsed.path.lstrip('/')
-                return bucket_name, object_key
+                return parsed.hostname.split('.s3.')[0], parsed.path.lstrip('/')
             elif parsed.hostname.startswith('s3.'):
                 path_parts = parsed.path.lstrip('/').split('/', 1)
-                bucket_name = path_parts[0] if path_parts else ''
-                object_key = path_parts[1] if len(path_parts) > 1 else ''
-                return bucket_name, object_key
-        
-        return None, None
-            
+                return path_parts[0], path_parts[1] if len(path_parts) > 1 else ''
     except Exception as e:
         print(f"Error parsing S3 URL {s3_url}: {e}")
-        return None, None
-
-def generate_presigned_urls_batch(urls, expiration=3600):
-    """Generate presigned URLs for a list of S3 URLs"""
-    if not urls:
-        return []
-    
-    presigned_urls = []
-    print(f"Generating presigned URLs for {len(urls)} files")
-    
-    for url in urls:
-        presigned_url = generate_presigned_url(url, expiration)
-        presigned_urls.append(presigned_url)
-    
-    return presigned_urls
+    return None, None

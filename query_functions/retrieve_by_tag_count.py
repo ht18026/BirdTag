@@ -13,6 +13,13 @@ deserializer = TypeDeserializer()
 TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'bird-db') # Replace 'bird-db-Shuyang' with your actual table name
 GSI_NAME = os.environ.get('DYNAMODB_GSI_NAME', 'bird_tag-index')       # Replace 'birdTagIndex' with your actual GSI name
 
+# CORS HEADERS
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+    "Access-Control-Allow-Methods": "OPTIONS,POST,GET"
+}
+
 def lambda_handler(event, context):
     try:
         # 1. Parse the input JSON from the request body
@@ -23,12 +30,14 @@ def lambda_handler(event, context):
         except json.JSONDecodeError:
             return {
                 'statusCode': 400,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({'error': 'Invalid JSON in request body'})
             }
 
         if not request_body:
             return {
                 'statusCode': 400,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({'error': 'Request body is empty. Please provide bird tags and counts.'})
             }
 
@@ -43,6 +52,7 @@ def lambda_handler(event, context):
             if not isinstance(min_count, int) or min_count < 0:
                 return {
                     'statusCode': 400,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({'error': f'Invalid count for {bird_species}. Count must be a non-negative integer.'})
                 }
 
@@ -85,66 +95,63 @@ def lambda_handler(event, context):
                                 }
             except Exception as e:
                 print(f"Error querying DynamoDB for tag '{bird_species}': {e}")
-                # Depending on desired behavior, you might want to return an error here
-                # or treat it as if this tag yielded no results.
-                # For now, let's assume if a query fails, we can't satisfy the intersection.
                 return {
                     'statusCode': 500,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({'error': f'Failed to query data for tag: {bird_species}. Details: {str(e)}'})
                 }
 
-
-            # If any tag yields no results, the final intersection will be empty
             if not current_tag_media_ids:
                 return {
                     'statusCode': 200,
+                    'headers': CORS_HEADERS,
                     'body': json.dumps({"links": []})
                 }
             sets_of_media_ids_for_each_tag.append(current_tag_media_ids)
 
         # 3. Perform intersection of media_ids
-        if not sets_of_media_ids_for_each_tag: # Should be caught by empty request_body, but defensive
+        if not sets_of_media_ids_for_each_tag:
             return {
                 'statusCode': 200,
+                'headers': CORS_HEADERS,
                 'body': json.dumps({"links": []})
             }
 
-        # Start with the first set and intersect with the rest
         intersected_media_ids = sets_of_media_ids_for_each_tag[0].copy()
         for i in range(1, len(sets_of_media_ids_for_each_tag)):
             intersected_media_ids.intersection_update(sets_of_media_ids_for_each_tag[i])
 
         # 4. Construct the response with URLs
-        result_links = set() # Use a set to avoid duplicate URLs if somehow possible
+        # 4. Construct the response with both thumb and full-size URLs
+        presigned_expiration = int(os.environ.get('PRESIGNED_URL_EXPIRATION', '3600'))
+        results = []
+
         for media_id in intersected_media_ids:
             details = media_details_cache.get(media_id)
             if not details:
-                # This should ideally not happen if caching logic is correct
                 print(f"Warning: Details for media_id {media_id} not found in cache. Skipping.")
                 continue
 
+            thumb_url = details.get('thumb_url')
+            full_url = details.get('full_url')
             file_type = details.get('file_type')
-            
-            if file_type == 'image':
-                thumb_url = details.get('thumb_url')
-                if thumb_url:
-                    result_links.add(thumb_url)
-                # else: you might want to log if an image is missing a thumb_url
-            else: # Or any other type that uses full_url
-                full_url = details.get('full_url')
-                if full_url:
-                    result_links.add(full_url)
 
-        # **NEW: Generate presigned URLs**
-        direct_urls = sorted(list(result_links))
-        presigned_expiration = int(os.environ.get('PRESIGNED_URL_EXPIRATION', '3600'))
-        presigned_urls = generate_presigned_urls_batch(direct_urls, presigned_expiration)
+            presigned_thumb = generate_presigned_url(thumb_url, presigned_expiration) if thumb_url else None
+            presigned_full = generate_presigned_url(full_url, presigned_expiration) if full_url else None
+
+            results.append({
+                "media_id": media_id,
+                "file_type": file_type,
+                "thumb_url": presigned_thumb,
+                "full_url": presigned_full
+            })
 
         return {
             'statusCode': 200,
+            'headers': CORS_HEADERS,
             'body': json.dumps({
-                "links": presigned_urls,  # Return presigned URLs
-                "total_matches": len(direct_urls),
+                "results": results,
+                "total_matches": len(results),
                 "presigned_expiration": presigned_expiration
             })
         }
@@ -155,12 +162,12 @@ def lambda_handler(event, context):
         traceback.print_exc()
         return {
             'statusCode': 500,
+            'headers': CORS_HEADERS,
             'body': json.dumps({'error': 'Internal server error. Check Lambda logs for details.'})
         }
 
 # **NEW: Add presigned URL functions**
 def generate_presigned_url(s3_url, expiration=3600):
-    """Generate a presigned URL for an S3 object"""
     try:
         s3_client = boto3.client('s3')
         bucket_name, object_key = parse_s3_url(s3_url)
@@ -176,7 +183,6 @@ def generate_presigned_url(s3_url, expiration=3600):
         )
         
         return presigned_url
-        
     except ClientError as e:
         print(f"Error generating presigned URL for {s3_url}: {e}")
         return s3_url
@@ -185,46 +191,30 @@ def generate_presigned_url(s3_url, expiration=3600):
         return s3_url
 
 def parse_s3_url(s3_url):
-    """Parse S3 URL to extract bucket name and object key"""
     if not s3_url:
         return None, None
-    
     try:
         if s3_url.startswith('s3://'):
             parts = s3_url[5:].split('/', 1)
-            bucket_name = parts[0]
-            object_key = parts[1] if len(parts) > 1 else ''
-            return bucket_name, object_key
-        
+            return parts[0], parts[1] if len(parts) > 1 else ''
         elif 'amazonaws.com' in s3_url:
             parsed = urlparse(s3_url)
-            
             if '.s3.' in parsed.hostname:
-                bucket_name = parsed.hostname.split('.s3.')[0]
-                object_key = parsed.path.lstrip('/')
-                return bucket_name, object_key
+                return parsed.hostname.split('.s3.')[0], parsed.path.lstrip('/')
             elif parsed.hostname.startswith('s3.'):
                 path_parts = parsed.path.lstrip('/').split('/', 1)
-                bucket_name = path_parts[0] if path_parts else ''
-                object_key = path_parts[1] if len(path_parts) > 1 else ''
-                return bucket_name, object_key
-        
-        return None, None
-            
+                return path_parts[0], path_parts[1] if len(path_parts) > 1 else ''
     except Exception as e:
         print(f"Error parsing S3 URL {s3_url}: {e}")
-        return None, None
+    return None, None
 
 def generate_presigned_urls_batch(urls, expiration=3600):
-    """Generate presigned URLs for a list of S3 URLs"""
     if not urls:
         return []
     
     presigned_urls = []
     print(f"Generating presigned URLs for {len(urls)} files")
-    
     for url in urls:
         presigned_url = generate_presigned_url(url, expiration)
         presigned_urls.append(presigned_url)
-    
     return presigned_urls
