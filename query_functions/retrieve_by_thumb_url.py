@@ -16,43 +16,15 @@ THUMB_URL_GSI_NAME = os.environ.get('DYNAMODB_THUMB_GSI_NAME', 'thumb_url-index'
 def lambda_handler(event, context):
     print(f"Received event: {json.dumps(event)}") 
 
-    # CORS headers for API Gateway
-    cors_headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
-    }
-    
-    # Handle CORS preflight request
-    if event.get('httpMethod') == 'OPTIONS':
-        return {
-            'statusCode': 200,
-            'headers': cors_headers,
-            'body': json.dumps({'message': 'CORS preflight'})
-        }
-    
     try:
         # 1. The 'event' is already the parsed JSON object from the request body
         # The input is expected to be a dictionary with a 'thumbnail_url' key
     # {
 #     "thumbnail_url": "s3://your-bucket-name/path/to/your/thumbnail.jpg"
 #     }
-        try:
-            # parse the JSON body from the event
-            if isinstance(event.get('body'), str):
-                payload = json.loads(event['body'])
-            else:
-                # if the body is already a dict, use it directly
-                payload = event
-        except (json.JSONDecodeError, TypeError) as e:
-            print(f"JSON parsing error: {e}")
-            return {
-                'statusCode': 400,
-                'headers': cors_headers,
-                'body': json.dumps({'error': 'Invalid JSON in request body.'})
-            }
+        payload = event 
         
-        print(f"Parsed payload: {payload}")
+        print(f"Using event directly as payload: {payload}")
         print(f"Type of payload: {type(payload)}")
 
         input_thumb_url = payload.get('thumbnail_url')

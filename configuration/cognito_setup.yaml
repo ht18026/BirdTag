@@ -47,7 +47,7 @@ Resources:
   BirdTagUserPoolDomainTest:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
-      Domain: us-east-1-xxx-test # change it to be unique
+      Domain: us-east-1lion86kpj-test
       UserPoolId: !Ref BirdTagUserPoolTest
 
   BirdTagClientUITest:

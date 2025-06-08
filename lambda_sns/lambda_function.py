@@ -17,9 +17,7 @@ def lambda_handler(event, context):
         }
     }
     """
-    print("Received event:")
-    print(json.dumps(event, indent=2))
-    tags = event.get("responsePayload", {}).get("tags", {}) # due to aws will wrap the response with other messages
+    tags = event.get("tags", {})
 
 
     if not tags:
@@ -44,10 +42,8 @@ def lambda_handler(event, context):
                     }
                 }
             )
-            print(f"Published SNS message for {tag}: {response}")
             results.append({"tag": tag, "MessageId": response.get("MessageId")})
         except Exception as e:
-            print(f"Error publishing SNS message for {tag}: {e}")
             results.append({"tag": tag, "error": str(e)})
 
     return {

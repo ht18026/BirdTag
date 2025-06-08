@@ -6,19 +6,63 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: birdtag-models-fit5225-g138
-      CorsConfiguration:
-        CorsRules:
-          - AllowedHeaders:
-              - "*"
-            AllowedMethods:
-              - PUT
-              - POST
-              - GET
-              - HEAD
-            AllowedOrigins:
-              - "*"
-            ExposedHeaders: []
-            MaxAge: 3000
+
+  BirdDbTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: bird-db
+      AttributeDefinitions:
+        - AttributeName: media_id
+          AttributeType: S
+        - AttributeName: bird_tag
+          AttributeType: S
+        - AttributeName: thumb_url
+          AttributeType: S
+        - AttributeName: full_url
+          AttributeType: S
+      KeySchema:
+        - AttributeName: media_id
+          KeyType: HASH
+        - AttributeName: bird_tag
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: bird_tag-index
+          KeySchema:
+            - AttributeName: bird_tag
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        - IndexName: thumb_url-index
+          KeySchema:
+            - AttributeName: thumb_url
+              KeyType: HASH
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes:
+              - bird_tag
+              - file_type
+              - full_url
+        - IndexName: full_url-index
+          KeySchema:
+            - AttributeName: full_url
+              KeyType: HASH
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes:
+              - bird_tag
+              - file_type
+              - thumb_url
+
+  ImageRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: page/image-repo
+
+  VideoRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: page/video-repo
 
   AudioRepo:
     Type: AWS::ECR::Repository
