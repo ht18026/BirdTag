@@ -1,0 +1,556 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'API Gateway for BirdTag System - bird-api-shuyang with 6 Lambda integrations and CORS enabled'
+
+Parameters:
+  RetrieveByTagCountLambdaArn:
+    Type: String
+    Description: ARN of the retrieve_by_tag_count Lambda function
+    # replace with your actual Lambda ARN
+    Default: arn:aws:lambda:us-east-1:744647612980:function:RetrieveWithTagCount
+
+  RetrieveByTagLambdaArn:
+    Type: String
+    Description: ARN of the retrieve_by_tag Lambda function
+    # replace with your actual Lambda ARN
+    Default: arn:aws:lambda:us-east-1:744647612980:function:retrieve-with-tag
+
+  RetrieveByThumbUrlLambdaArn:
+    Type: String
+    Description: ARN of the retrieve_by_thumb_url Lambda function
+    # replace with your actual Lambda ARN
+    Default: arn:aws:lambda:us-east-1:744647612980:function:retrieve_with_thumb_url
+
+  RetrieveByFileLambdaArn:
+    Type: String
+    Description: ARN of the retrieve_by_file Lambda function
+    # replace with your actual Lambda ARN
+    Default: arn:aws:lambda:us-east-1:744647612980:function:retrieve_by_file_main_lambda
+
+  AddOrDeleteTagsLambdaArn:
+    Type: String
+    Description: ARN of the add_or_delete_tags Lambda function
+    # replace with your actual Lambda ARN
+    Default: arn:aws:lambda:us-east-1:744647612980:function:add_or_delete_tags
+
+  DeleteFilesLambdaArn:
+    Type: String
+    Description: ARN of the delete_files Lambda function
+    # replace with your actual Lambda ARN
+    Default: arn:aws:lambda:us-east-1:744647612980:function:delete_files
+
+Resources:
+  # API Gateway REST API
+  BirdApiShuyang:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: bird-api-shuyang
+      Description: BirdTag System API Gateway with Lambda integrations and CORS enabled
+      BinaryMediaTypes:
+        - multipart/form-data
+        - application/octet-stream
+        - image/*
+        - video/*
+        - audio/*
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+
+  # ========== RESOURCES ==========
+
+  # 1. retrieve-by-tag-count Resource
+  RetrieveByTagCountResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ParentId: !GetAtt BirdApiShuyang.RootResourceId
+      PathPart: retrieve-by-tag-count
+
+  # 2. retrieve-by-tag Resource
+  RetrieveByTagResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ParentId: !GetAtt BirdApiShuyang.RootResourceId
+      PathPart: retrieve-by-tag
+
+  # 3. retrieve-by-thumb-url Resource
+  RetrieveByThumbUrlResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ParentId: !GetAtt BirdApiShuyang.RootResourceId
+      PathPart: retrieve-by-thumb-url
+
+  # 4. retrieve-by-file Resource
+  RetrieveByFileResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ParentId: !GetAtt BirdApiShuyang.RootResourceId
+      PathPart: retrieve-by-file
+
+  # 5. add-or-delete-tags Resource
+  AddOrDeleteTagsResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ParentId: !GetAtt BirdApiShuyang.RootResourceId
+      PathPart: add-or-delete-tags
+
+  # 6. delete-files Resource
+  DeleteFilesResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ParentId: !GetAtt BirdApiShuyang.RootResourceId
+      PathPart: delete-files
+
+  # ========== POST METHODS WITH CORS ENABLED ==========
+
+  # 1. retrieve-by-tag-count POST Method
+  RetrieveByTagCountPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref RetrieveByTagCountResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RetrieveByTagCountLambdaArn}/invocations'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+
+  # 2. retrieve-by-tag POST Method
+  RetrieveByTagPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref RetrieveByTagResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RetrieveByTagLambdaArn}/invocations'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+
+  # 3. retrieve-by-thumb-url POST Method
+  RetrieveByThumbUrlPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref RetrieveByThumbUrlResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RetrieveByThumbUrlLambdaArn}/invocations'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+
+  # 4. retrieve-by-file POST Method
+  RetrieveByFilePostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref RetrieveByFileResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${RetrieveByFileLambdaArn}/invocations'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+
+  # 5. add-or-delete-tags POST Method
+  AddOrDeleteTagsPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref AddOrDeleteTagsResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AddOrDeleteTagsLambdaArn}/invocations'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+
+  # 6. delete-files POST Method
+  DeleteFilesPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref DeleteFilesResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeleteFilesLambdaArn}/invocations'
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+
+  # ========== OPTIONS METHODS (for CORS preflight) ==========
+
+  # 1. retrieve-by-tag-count OPTIONS Method
+  RetrieveByTagCountOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref RetrieveByTagCountResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Max-Age: "'86400'"
+            ResponseTemplates:
+              application/json: ''
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Max-Age: false
+
+  # 2. retrieve-by-tag OPTIONS Method
+  RetrieveByTagOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref RetrieveByTagResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Max-Age: "'86400'"
+            ResponseTemplates:
+              application/json: ''
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Max-Age: false
+
+  # 3. retrieve-by-thumb-url OPTIONS Method
+  RetrieveByThumbUrlOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref RetrieveByThumbUrlResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Max-Age: "'86400'"
+            ResponseTemplates:
+              application/json: ''
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Max-Age: false
+
+  # 4. retrieve-by-file OPTIONS Method
+  RetrieveByFileOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref RetrieveByFileResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Max-Age: "'86400'"
+            ResponseTemplates:
+              application/json: ''
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Max-Age: false
+
+  # 5. add-or-delete-tags OPTIONS Method
+  AddOrDeleteTagsOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref AddOrDeleteTagsResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Max-Age: "'86400'"
+            ResponseTemplates:
+              application/json: ''
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Max-Age: false
+
+  # 6. delete-files OPTIONS Method
+  DeleteFilesOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      ResourceId: !Ref DeleteFilesResource
+      HttpMethod: OPTIONS
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+        IntegrationResponses:
+          - StatusCode: 200
+            ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Max-Age: "'86400'"
+            ResponseTemplates:
+              application/json: ''
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+      MethodResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+            method.response.header.Access-Control-Max-Age: false
+
+  # ========== LAMBDA PERMISSIONS ==========
+
+  # 1. retrieve_by_tag_count Lambda Permission
+  RetrieveByTagCountLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref RetrieveByTagCountLambdaArn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${BirdApiShuyang}/*/*'
+
+  # 2. retrieve_by_tag Lambda Permission
+  RetrieveByTagLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref RetrieveByTagLambdaArn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${BirdApiShuyang}/*/*'
+
+  # 3. retrieve_by_thumb_url Lambda Permission
+  RetrieveByThumbUrlLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref RetrieveByThumbUrlLambdaArn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${BirdApiShuyang}/*/*'
+
+  # 4. retrieve_by_file Lambda Permission
+  RetrieveByFileLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref RetrieveByFileLambdaArn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${BirdApiShuyang}/*/*'
+
+  # 5. add_or_delete_tags Lambda Permission
+  AddOrDeleteTagsLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AddOrDeleteTagsLambdaArn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${BirdApiShuyang}/*/*'
+
+  # 6. delete_files Lambda Permission
+  DeleteFilesLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DeleteFilesLambdaArn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${BirdApiShuyang}/*/*'
+
+  # ========== API DEPLOYMENT ==========
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      # POST Methods
+      - RetrieveByTagCountPostMethod
+      - RetrieveByTagPostMethod
+      - RetrieveByThumbUrlPostMethod
+      - RetrieveByFilePostMethod
+      - AddOrDeleteTagsPostMethod
+      - DeleteFilesPostMethod
+      # OPTIONS Methods
+      - RetrieveByTagCountOptionsMethod
+      - RetrieveByTagOptionsMethod
+      - RetrieveByThumbUrlOptionsMethod
+      - RetrieveByFileOptionsMethod
+      - AddOrDeleteTagsOptionsMethod
+      - DeleteFilesOptionsMethod
+    Properties:
+      RestApiId: !Ref BirdApiShuyang
+      StageName: dev
+
+Outputs:
+  ApiGatewayRestApiId:
+    Description: BirdTag API Gateway REST API ID  
+    Value: !Ref BirdApiShuyang
+    Export:
+      Name: !Sub "${AWS::StackName}-BirdApiId"
+      
+  ApiGatewayUrl:
+    Description: BirdTag API Gateway endpoint URL
+    Value: !Sub 'https://${BirdApiShuyang}.execute-api.${AWS::Region}.amazonaws.com/dev'
+    Export:
+      Name: !Sub "${AWS::StackName}-BirdApiUrl"
+
+  # Individual Resource Endpoints
+  RetrieveByTagCountEndpoint:
+    Description: Retrieve by tag count endpoint
+    Value: !Sub 'https://${BirdApiShuyang}.execute-api.${AWS::Region}.amazonaws.com/dev/retrieve-by-tag-count'
+
+  RetrieveByTagEndpoint:
+    Description: Retrieve by tag endpoint
+    Value: !Sub 'https://${BirdApiShuyang}.execute-api.${AWS::Region}.amazonaws.com/dev/retrieve-by-tag'
+
+  RetrieveByThumbUrlEndpoint:
+    Description: Retrieve by thumb URL endpoint
+    Value: !Sub 'https://${BirdApiShuyang}.execute-api.${AWS::Region}.amazonaws.com/dev/retrieve-by-thumb-url'
+
+  RetrieveByFileEndpoint:
+    Description: Retrieve by file endpoint
+    Value: !Sub 'https://${BirdApiShuyang}.execute-api.${AWS::Region}.amazonaws.com/dev/retrieve-by-file'
+
+  AddOrDeleteTagsEndpoint:
+    Description: Add or delete tags endpoint
+    Value: !Sub 'https://${BirdApiShuyang}.execute-api.${AWS::Region}.amazonaws.com/dev/add-or-delete-tags'
+
+  DeleteFilesEndpoint:
+    Description: Delete files endpoint
+    Value: !Sub 'https://${BirdApiShuyang}.execute-api.${AWS::Region}.amazonaws.com/dev/delete-files'
