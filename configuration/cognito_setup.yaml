@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: TEST VERSION - Cognito User Pool and Clients for BirdTag App (Safe for Deployment)
+
+Resources:
+
+  BirdTagUserPoolTest:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: User pool - BirdTagUI-Test # user pool name.. change it to something u can identify.. 
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Schema:
+        - Name: email
+          Required: true
+          Mutable: true
+          AttributeDataType: String
+        - Name: name
+          Required: true
+          Mutable: true
+          AttributeDataType: String
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          TemporaryPasswordValidityDays: 7  
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+      MfaConfiguration: "OFF"
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      UsernameConfiguration:
+        CaseSensitive: false
+      EmailConfiguration:
+        EmailSendingAccount: COGNITO_DEFAULT
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+          - Name: verified_phone_number
+            Priority: 2
+
+  BirdTagUserPoolDomainTest:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: us-east-1-xxx-test # change it to be unique
+      UserPoolId: !Ref BirdTagUserPoolTest
+
+  BirdTagClientUITest:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: BirdTagClient-UI-Test # client app name.. change it to something u can identify 
+      UserPoolId: !Ref BirdTagUserPoolTest
+      GenerateSecret: false
+      CallbackURLs:
+        - http://localhost:3000/
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - phone
+      AllowedOAuthFlowsUserPoolClient: true
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_AUTH
+        - ALLOW_USER_SRP_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 5
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      AuthSessionValidity: 3
+
+  BirdTagUITest:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: BirdTag-UI-Test
+      UserPoolId: !Ref BirdTagUserPoolTest
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_AUTH
+        - ALLOW_USER_SRP_AUTH

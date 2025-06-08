@@ -19,11 +19,11 @@ MODEL_ENV = os.environ.get("MODEL_NAME", "BirdNET_Model.tflite")
 # Labels file contains all bird species names that BirdNET model can recognize
 LABELS_FILE = os.environ.get("LABELS_FILE", "BirdNET_Labels.txt")
 
-DDB_TABLE = "bird-db"
+DDB_TABLE = os.environ.get("DDB_TABLE", "bird-db")  # DynamoDB table name for storing detection results
 
 # Get S3 bucket name from environment variable, use default value if not set
 # This is the S3 bucket that stores model files and labels files
-BUCKET_NAME = os.environ.get("BUCKET_NAME", "birdtag-models-fit5225-g138-shuyang")
+BUCKET_NAME = os.environ.get("BUCKET_NAME", "birdtag-models-fit5225-g138")
 
 def download_file_from_s3(bucket, key, download_path):
     """

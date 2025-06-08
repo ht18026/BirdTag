@@ -1,0 +1,43 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: BirdTag System S3 and DynamoDB resources
+
+Resources:
+  BirdBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: birdtag-models-fit5225-g138
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - PUT
+              - POST
+              - GET
+              - HEAD
+            AllowedOrigins:
+              - "*"
+            ExposedHeaders: []
+            MaxAge: 3000
+
+  AudioRepo:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: page/audio-repo
+
+Outputs:
+  BucketName:
+    Description: "S3 Bucket Name"
+    Value: !Ref BirdBucket
+  DynamoDBTableName:
+    Description: "DynamoDB Table Name"
+    Value: !Ref BirdDbTable
+  ImageRepoURI:
+    Description: "ECR URI for image repository"
+    Value: !GetAtt ImageRepo.RepositoryUri
+  VideoRepoURI:
+    Description: "ECR URI for video repository"
+    Value: !GetAtt VideoRepo.RepositoryUri
+  AudioRepoURI:
+    Description: "ECR URI for audio repository"
+    Value: !GetAtt AudioRepo.RepositoryUri

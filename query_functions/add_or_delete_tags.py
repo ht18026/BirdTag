@@ -9,9 +9,9 @@ deserializer = TypeDeserializer()
 serializer = TypeSerializer()
 
 # Environment variables
-TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'bird-db-Shuyang')
-THUMB_URL_GSI_NAME = os.environ.get('DYNAMODB_THUMB_GSI_NAME', 'thumbUrlIndex')
-FULL_URL_GSI_NAME = os.environ.get('DYNAMODB_FULL_GSI_NAME', 'fullUrlIndex')
+TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME', 'bird-db')
+THUMB_URL_GSI_NAME = os.environ.get('DYNAMODB_THUMB_GSI_NAME', 'thumb_url-index')
+FULL_URL_GSI_NAME = os.environ.get('DYNAMODB_FULL_GSI_NAME', 'full_url-index')
 
 def _parse_input_tags(tags_str_list):
     """Parses the list of tag strings (e.g., "crow,1") into a list of dicts."""
