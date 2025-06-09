@@ -31,7 +31,13 @@ def lambda_handler(event, context):
                 "headers": CORS_HEADERS,
                 "body": json.dumps({"error": "Both email and tags are required"})
             }
+        #remove existing subscriptions
+        existing_subs = sns.list_subscriptions_by_topic(TopicArn=SNS_TOPIC_ARN)
 
+        for sub in existing_subs.get('Subscriptions', []):
+            if sub['Protocol'] == 'email' and sub['Endpoint'] == email:
+                sns.unsubscribe(SubscriptionArn=sub['SubscriptionArn'])
+                break  # Only one should exist
         filter_policy = {
             "bird_tag": tags
         }
