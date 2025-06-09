@@ -19,6 +19,11 @@ def lambda_handler(event, context):
     Returns:
         dict: Response with detected tags and matching file links
     """
+    """
+        function_name = os.environ.get('AUDIO_ANALYSIS_FUNCTION', 'analyze_audio_lambda')
+        function_name = os.environ.get('IMAGE_ANALYSIS_FUNCTION', 'analyze_image_lambda')
+        function_name = os.environ.get('VIDEO_ANALYSIS_FUNCTION', 'analyze_video_lambda')
+    """
     
     # CORS headers for cross-origin requests
     cors_headers = {
